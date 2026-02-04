@@ -14,11 +14,11 @@
     "declarationMap": true,
     "sourceMap": true
   },
-  "include": [
-    "backend/**/*.ts",
-    "frontend/**/*.ts",
-    "frontend/**/*.tsx"
-  ],
+"include": [
+  "backend/**/*.ts",
+  "frontend/**/*.ts",
+  "frontend/**/*.tsx"
+],
   "exclude": [
     "node_modules",
     ".next",
