@@ -1,0 +1,21 @@
+{
+  "name": "dk-edufin",
+  "version": "1.0.0",
+  "description": "A smart web application that helps students discover eligible colleges based on their academic performance and preferences.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Isarionorg/DK-Edufin.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/Isarionorg/DK-Edufin/issues"
+  },
+  "homepage": "https://github.com/Isarionorg/DK-Edufin#readme"
+}
