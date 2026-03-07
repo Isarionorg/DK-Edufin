@@ -12,11 +12,11 @@ export default function AuthPage() {
   const [mode, setMode] = useState<AuthMode>("login");
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-blue-50 flex items-center justify-center px-4 py-12">
+    <main className="min-h-screen bg-linear-to-br from-blue-50 via-white to-blue-50 flex items-center justify-center px-4 py-12">
       <div className="w-full max-w-5xl flex rounded-3xl shadow-2xl overflow-hidden bg-white">
 
         {/* ─── LEFT PANEL ─── */}
-        <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-blue-500 to-blue-700 p-12 flex-col justify-between">
+        <div className="hidden lg:flex lg:w-1/2 bg-linear-to-br from-blue-500 to-blue-700 p-12 flex-col justify-between">
           {/* Logo */}
           <Link href="/" className="text-2xl font-bold text-white tracking-tight">
             DK<span className="text-blue-200">Edufin</span>
