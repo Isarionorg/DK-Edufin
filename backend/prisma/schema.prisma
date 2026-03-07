@@ -1,14 +1,170 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
-  provider = "prisma-client"
-  output   = "../generated/prisma"
+  provider = "prisma-client-js"
 }
 
 datasource db {
   provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model categories {
+  category_id   Int             @id @default(autoincrement())
+  category_code String          @unique @db.VarChar(20)
+  category_name String?         @db.VarChar(100)
+  cutoff_data   cutoff_data[]
+  user_profiles user_profiles[]
+}
+
+model college_course_exam_eligibility {
+  eligibility_id    Int              @id @default(autoincrement())
+  college_course_id Int?
+  exam_id           Int?
+  created_at        DateTime?        @default(now()) @db.Timestamp(6)
+  college_courses   college_courses? @relation(fields: [college_course_id], references: [college_course_id], onDelete: Cascade, onUpdate: NoAction)
+  exams             exams?           @relation(fields: [exam_id], references: [exam_id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([college_course_id, exam_id], map: "unique_eligibility")
+}
+
+model college_courses {
+  college_course_id               Int                               @id @default(autoincrement())
+  college_id                      Int?
+  course_id                       Int?
+  specialization_id               Int?
+  is_available                    Boolean?                          @default(true)
+  created_at                      DateTime?                         @default(now()) @db.Timestamp(6)
+  updated_at                      DateTime?                         @default(now()) @db.Timestamp(6)
+  college_course_exam_eligibility college_course_exam_eligibility[]
+  colleges                        colleges?                         @relation(fields: [college_id], references: [college_id], onDelete: Cascade, onUpdate: NoAction)
+  courses                         courses?                          @relation(fields: [course_id], references: [course_id], onDelete: Cascade, onUpdate: NoAction)
+  course_specializations          course_specializations?           @relation(fields: [specialization_id], references: [specialization_id], onDelete: NoAction, onUpdate: NoAction)
+  cutoff_data                     cutoff_data[]
+
+  @@unique([college_id, course_id, specialization_id], map: "unique_college_course")
+  @@index([college_id, course_id], map: "idx_college_course")
+}
+
+model colleges {
+  college_id       Int               @id @default(autoincrement())
+  college_name     String            @unique(map: "unique_college_name") @db.VarChar(255)
+  college_type     String?           @db.VarChar(100)
+  affiliation      String?           @db.VarChar(255)
+  state            String?           @db.VarChar(100)
+  city             String?           @db.VarChar(100)
+  address          String?
+  website_url      String?
+  established_year Int?
+  is_partner       Boolean?          @default(false)
+  created_at       DateTime?         @default(now()) @db.Timestamp(6)
+  updated_at       DateTime?         @default(now()) @db.Timestamp(6)
+  college_courses  college_courses[]
+}
+
+model course_specializations {
+  specialization_id   Int               @id @default(autoincrement())
+  course_id           Int?
+  specialization_name String            @db.VarChar(255)
+  created_at          DateTime?         @default(now()) @db.Timestamp(6)
+  college_courses     college_courses[]
+  courses             courses?          @relation(fields: [course_id], references: [course_id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([course_id, specialization_name], map: "unique_course_specialization")
+}
+
+model courses {
+  course_id              Int                      @id @default(autoincrement())
+  course_code            String                   @unique @db.VarChar(50)
+  course_name            String                   @db.VarChar(255)
+  degree_type            String?                  @db.VarChar(100)
+  stream                 String?                  @db.VarChar(100)
+  duration_years         Decimal?                 @db.Decimal
+  description            String?
+  created_at             DateTime?                @default(now()) @db.Timestamp(6)
+  college_courses        college_courses[]
+  course_specializations course_specializations[]
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model cutoff_data {
+  cutoff_id         Int              @id @default(autoincrement())
+  college_course_id Int?
+  exam_id           Int?
+  category_id       Int?
+  cutoff_score      Decimal?         @db.Decimal
+  cutoff_rank       Int?
+  academic_year     Int
+  created_at        DateTime?        @default(now()) @db.Timestamp(6)
+  round_number      Int              @default(1)
+  categories        categories?      @relation(fields: [category_id], references: [category_id], onDelete: NoAction, onUpdate: NoAction)
+  college_courses   college_courses? @relation(fields: [college_course_id], references: [college_course_id], onDelete: Cascade, onUpdate: NoAction)
+  exams             exams?           @relation(fields: [exam_id], references: [exam_id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([college_course_id, exam_id, category_id, academic_year, round_number], map: "unique_cutoff")
+  @@index([exam_id, category_id, cutoff_rank], map: "idx_cutoff_rank")
+  @@index([exam_id, category_id, cutoff_score], map: "idx_cutoff_score")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model exams {
+  exam_id                         Int                               @id @default(autoincrement())
+  exam_name                       String                            @unique @db.VarChar(100)
+  exam_full_name                  String?
+  qualification_type              String                            @db.VarChar(20)
+  description                     String?
+  created_at                      DateTime?                         @default(now()) @db.Timestamp(6)
+  college_course_exam_eligibility college_course_exam_eligibility[]
+  cutoff_data                     cutoff_data[]
+  user_exam_scores                user_exam_scores[]
+}
+
+model otp_verification {
+  otp_id     Int       @id @default(autoincrement())
+  user_id    String?   @db.Uuid
+  otp_hash   String
+  expires_at DateTime  @db.Timestamp(6)
+  is_used    Boolean?  @default(false)
+  created_at DateTime? @default(now()) @db.Timestamp(6)
+  users      users?    @relation(fields: [user_id], references: [user_id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model user_exam_scores {
+  score_id    Int       @id @default(autoincrement())
+  user_id     String?   @db.Uuid
+  exam_id     Int?
+  score_value Decimal?  @db.Decimal
+  rank_value  Int?
+  year        Int
+  created_at  DateTime? @default(now()) @db.Timestamp(6)
+  exams       exams?    @relation(fields: [exam_id], references: [exam_id], onDelete: Cascade, onUpdate: NoAction)
+  users       users?    @relation(fields: [user_id], references: [user_id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([user_id, exam_id, year], map: "unique_user_exam_year")
+  @@index([user_id, exam_id], map: "idx_user_exam")
+}
+
+model user_profiles {
+  profile_id    String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id       String?     @unique @db.Uuid
+  date_of_birth DateTime?   @db.Date
+  gender        String?     @db.VarChar(20)
+  category_id   Int?
+  created_at    DateTime?   @default(now()) @db.Timestamp(6)
+  updated_at    DateTime?   @default(now()) @db.Timestamp(6)
+  categories    categories? @relation(fields: [category_id], references: [category_id], onDelete: NoAction, onUpdate: NoAction)
+  users         users?      @relation(fields: [user_id], references: [user_id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+model users {
+  user_id           String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  email             String             @unique @db.VarChar(255)
+  password_hash     String
+  full_name         String?            @db.VarChar(255)
+  phone             String?            @db.VarChar(20)
+  is_email_verified Boolean?           @default(false)
+  created_at        DateTime?          @default(now()) @db.Timestamp(6)
+  updated_at        DateTime?          @default(now()) @db.Timestamp(6)
+  otp_verification  otp_verification[]
+  user_exam_scores  user_exam_scores[]
+  user_profiles     user_profiles?
 }
