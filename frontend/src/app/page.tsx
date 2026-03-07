@@ -43,7 +43,7 @@ const features = [
 
 export default function HomePage() {
   return (
-    <main className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
+    <main className="min-h-screen bg-linear-to-b from-blue-50 to-white">
 
       {/* ─── HERO SECTION ─── */}
       <section className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-20 pb-24 text-center">
@@ -124,11 +124,11 @@ export default function HomePage() {
       </section>
 
       {/* ─── ABOUT THE OWNER SECTION ─── */}
-      <section className="py-20 bg-gradient-to-b from-white to-blue-50">
+      <section className="py-20 bg-linear-to-b from-white to-blue-50">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex flex-col lg:flex-row items-center gap-12">
             {/* Photo placeholder */}
-            <div className="flex-shrink-0">
+            <div className="shrink-0">
               <div className="w-56 h-56 rounded-full bg-blue-200 flex items-center justify-center shadow-lg border-4 border-blue-300">
                 <span className="text-7xl">👨‍💼</span>
               </div>
