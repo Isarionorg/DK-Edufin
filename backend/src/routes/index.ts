@@ -4,6 +4,7 @@ import userRoutes from './user.routes';
 import paymentRoutes from './payment.routes';
 import uploadRoutes from './upload.routes';
 import healthRoutes from './health.routes';
+import collegeRoutes from './college.routes'; // add this
 
 const router = Router();
 
@@ -22,7 +23,9 @@ router.use('/payment', paymentRoutes);
 // Upload routes
 router.use('/upload', uploadRoutes);
 
-// Default API info
+// NEW
+router.use('/colleges', collegeRoutes);
+
 router.get('/', (_req, res) => {
   res.status(200).json({
     success: true,
@@ -34,6 +37,7 @@ router.get('/', (_req, res) => {
       users: '/api/v1/users',
       payment: '/api/v1/payment',
       upload: '/api/v1/upload',
+      colleges: '/api/v1/colleges'
     },
   });
 });
