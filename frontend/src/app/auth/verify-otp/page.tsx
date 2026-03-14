@@ -19,7 +19,7 @@ export default function VerifyOTPPage() {
     try {
       const email = sessionStorage.getItem("verifyEmail");
       if (!email) {
-        setError("Email not found. Please register first.");
+        setError("E-mail not found. Please register first.");
         router.push("/auth/register");
         return;
       }
@@ -33,10 +33,10 @@ export default function VerifyOTPPage() {
         sessionStorage.removeItem("verifyEmail");
         router.push("/auth/login");
       } else {
-        setError(response.data.message || "OTP verification failed");
+        setError(response.data.message || "OTP verification failed.");
       }
     } catch (err: any) {
-      setError(err.response?.data?.message || "Failed to verify OTP");
+      setError(err.response?.data?.message || "Failed to verify OTP. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -55,7 +55,7 @@ export default function VerifyOTPPage() {
             Verify OTP
           </h1>
           <p className="text-gray-600 text-center mb-8">
-            Enter the 6-digit code sent to your email
+            Enter the 6-digit code sent to your e-mail address
           </p>
 
           <form onSubmit={handleSubmit} className="space-y-6">
@@ -98,7 +98,7 @@ export default function VerifyOTPPage() {
           <p className="text-center text-gray-600 text-sm mt-6">
             Didn't receive a code?{" "}
             <button className="text-blue-600 hover:text-blue-700 font-semibold">
-              Resend
+              Resend Code
             </button>
           </p>
         </div>

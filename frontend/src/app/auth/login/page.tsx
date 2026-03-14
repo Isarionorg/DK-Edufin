@@ -22,7 +22,7 @@ export default function AuthPage() {
             DK<span className="text-blue-200">Edufin</span>
           </Link>
 
-          {/* Center Content */}
+          {/* Centre Content */}
           <div>
             <div className="text-6xl mb-6">🎓</div>
             <h2 className="text-3xl font-bold text-white mb-4 leading-snug">
@@ -32,15 +32,15 @@ export default function AuthPage() {
             </h2>
             <p className="text-blue-100 text-base leading-relaxed">
               {mode === "login"
-                ? "Log in to continue your personalized college journey with expert guidance."
-                : "Sign up for free and get personalized college recommendations tailored just for you."}
+                ? "Log in to continue your personalised college journey with expert guidance."
+                : "Sign up for free and get personalised college recommendations tailored just for you."}
             </p>
 
             {/* Testimonial */}
             <div className="mt-10 bg-white/10 backdrop-blur-sm rounded-2xl p-5 border border-white/20">
               <p className="text-white text-sm leading-relaxed italic">
                 "DKEdufin helped me find the perfect college for my career goals.
-                The guidance was honest and super helpful!"
+                The guidance was honest and incredibly helpful!"
               </p>
               <div className="flex items-center gap-3 mt-4">
                 <div className="w-9 h-9 rounded-full bg-blue-300 flex items-center justify-center text-white font-bold text-sm">
@@ -80,7 +80,7 @@ export default function AuthPage() {
                   : "text-gray-500 hover:text-gray-700"
               }`}
             >
-              Login
+              Log In
             </button>
             <button
               onClick={() => setMode("register")}

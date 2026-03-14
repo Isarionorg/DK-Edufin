@@ -39,7 +39,7 @@ export default function ContactPage() {
     },
     {
       icon: "✉️",
-      title: "Email Us",
+      title: "E-mail Us",
       subtitle: "We reply within 24 hours",
       value: "contact@dkedufin.com",
       color: "bg-indigo-500",
@@ -74,7 +74,7 @@ export default function ContactPage() {
           </h1>
           <p className="text-blue-100 text-lg max-w-xl mx-auto">
             Have questions about college admissions? We're just a message away.
-            DK Sir personally reviews every inquiry.
+            DK Sir personally reviews every enquiry.
           </p>
         </div>
       </section>
@@ -122,7 +122,7 @@ export default function ContactPage() {
               <ul className="space-y-3">
                 {[
                   "Free initial consultation",
-                  "Personalized college recommendations",
+                  "Personalised college recommendations",
                   "Admission process guidance",
                   "Career path planning",
                 ].map((item) => (
@@ -182,7 +182,7 @@ export default function ContactPage() {
                     Message Sent Successfully!
                   </h2>
                   <p className="text-gray-500 max-w-sm">
-                    Thank you for reaching out! DK Sir will personally review
+                    Thank you for getting in touch! DK Sir will personally review
                     your message and get back to you within 24 hours.
                   </p>
                   <button
@@ -222,7 +222,7 @@ export default function ContactPage() {
                     {/* Email */}
                     <div>
                       <label className="block text-sm font-semibold text-gray-700 mb-2">
-                        Email Address <span className="text-red-400">*</span>
+                        E-mail Address <span className="text-red-400">*</span>
                       </label>
                       <input
                         type="email"

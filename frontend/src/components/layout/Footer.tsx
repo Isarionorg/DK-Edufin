@@ -15,8 +15,8 @@ export default function Footer() {
               DK<span className="text-blue-400">Edufin</span>
             </Link>
             <p className="text-gray-400 text-sm mt-3 leading-relaxed">
-              Helping school students find the right college with honest, 
-              personalized guidance from an expert counselor.
+              Helping school students find the right college with honest,
+              personalised guidance from an expert counsellor.
             </p>
             {/* Social Icons */}
             <div className="flex gap-3 mt-5">
@@ -102,7 +102,7 @@ export default function Footer() {
               <li className="flex items-start gap-3">
                 <span className="text-lg mt-0.5">✉️</span>
                 <div>
-                  <p className="text-gray-400 text-xs mb-0.5">Email</p>
+                  <p className="text-gray-400 text-xs mb-0.5">E-mail</p>
                   <p className="text-white text-sm font-medium">contact@dkedufin.com</p>
                 </div>
               </li>

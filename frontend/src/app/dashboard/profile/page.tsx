@@ -42,7 +42,7 @@ export default function ProfilePage() {
           </div>
 
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">Email</label>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">E-mail</label>
             <p className="text-gray-900">{user?.email || "Not provided"}</p>
           </div>
 
@@ -55,7 +55,9 @@ export default function ProfilePage() {
 
           <div>
             <label className="block text-sm font-semibold text-gray-700 mb-2">Member Since</label>
-            <p className="text-gray-900">{new Date().toLocaleDateString()}</p>
+            <p className="text-gray-900">
+              {new Date().toLocaleDateString("en-GB")}
+            </p>
           </div>
         </div>
 

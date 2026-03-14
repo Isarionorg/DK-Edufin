@@ -38,7 +38,7 @@ export default function StudentFormPage() {
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
   ) => {
-    setForm({ ...form, [e.target.name]: e.target.value, });
+    setForm({ ...form, [e.target.name]: e.target.value });
     // reset courses when stream changes
     if (e.target.name === "stream") {
       setForm((prev) => ({ ...prev, stream: e.target.value, preferredCourses: [] }));
@@ -86,7 +86,7 @@ export default function StudentFormPage() {
           </h2>
           <p className="text-gray-500 mb-8">
             Thank you! DK Sir will review your details and get back to you with
-            personalized college recommendations soon.
+            personalised college recommendations shortly.
           </p>
           <Button
             variant="primary"
@@ -142,7 +142,7 @@ export default function StudentFormPage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                  Email Address <span className="text-red-400">*</span>
+                  E-mail Address <span className="text-red-400">*</span>
                 </label>
                 <input
                   type="email"

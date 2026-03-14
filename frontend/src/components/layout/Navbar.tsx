@@ -3,6 +3,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import Image from "next/image";
 import Button from "@/components/ui/Button";
 
 // Temporary auth mock — replace with your real Zustand auth store later
@@ -19,12 +20,15 @@ export default function Navbar() {
     <nav className="w-full bg-white/80 backdrop-blur-md border-b border-blue-100 sticky top-0 z-50 shadow-sm">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
-
           {/* Logo */}
           <Link href="/" className="flex items-center gap-2">
-            <span className="text-2xl font-bold text-blue-600 tracking-tight">
-              DK<span className="text-blue-400">Edufin</span>
-            </span>
+            <Image
+              src="/DK_Edufin_logo.png"
+              alt="DKEdufin Logo"
+              width={120}
+              height={40}
+              priority
+            />
           </Link>
 
           {/* Desktop Nav Links */}
@@ -43,11 +47,11 @@ export default function Navbar() {
             </Link>
 
             <Link
-  href="/student-form"
-  className="text-gray-600 hover:text-blue-600 font-medium transition-colors duration-200"
->
-  Student Form
-</Link>
+              href="/student-form"
+              className="text-gray-600 hover:text-blue-600 font-medium transition-colors duration-200"
+            >
+              Student Form
+            </Link>
 
             {isLoggedIn ? (
               <Link href="/dashboard/profile">
@@ -99,12 +103,12 @@ export default function Navbar() {
               Colleges
             </Link>
             <Link
-  href="/student-form"
-  className="text-gray-600 hover:text-blue-600 font-medium"
-  onClick={() => setMenuOpen(false)}
->
-  Student Form
-</Link>
+              href="/student-form"
+              className="text-gray-600 hover:text-blue-600 font-medium"
+              onClick={() => setMenuOpen(false)}
+            >
+              Student Form
+            </Link>
             <Link
               href="/contact"
               className="text-gray-600 hover:text-blue-600 font-medium"
@@ -113,12 +117,19 @@ export default function Navbar() {
               Contact Us
             </Link>
             {isLoggedIn ? (
-              <Link href="/dashboard/profile" onClick={() => setMenuOpen(false)}>
-                <Button variant="primary" size="sm">Profile</Button>
+              <Link
+                href="/dashboard/profile"
+                onClick={() => setMenuOpen(false)}
+              >
+                <Button variant="primary" size="sm">
+                  Profile
+                </Button>
               </Link>
             ) : (
               <Link href="/auth/login" onClick={() => setMenuOpen(false)}>
-                <Button variant="primary" size="sm">Login / Sign Up</Button>
+                <Button variant="primary" size="sm">
+                  Login / Sign Up
+                </Button>
               </Link>
             )}
           </div>
