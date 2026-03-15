@@ -6,7 +6,7 @@ import StudentProfileModal from "@/components/auth/StudentProfileModal";
 import { useAuth } from "@/hooks/useAuth";
 import axios from "@/lib/axios";
 
-interface College {
+export interface College {
   id: string;
   name: string;
   location: string;
