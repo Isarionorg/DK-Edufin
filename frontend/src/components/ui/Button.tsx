@@ -1,7 +1,7 @@
 // components/ui/Button.tsx
 import React from "react";
 
-type ButtonVariant = "primary" | "outline" | "ghost";
+type ButtonVariant = "primary" | "secondary" | "outline" | "ghost";
 type ButtonSize = "sm" | "md" | "lg";
 
 interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
@@ -25,6 +25,8 @@ export default function Button({
   const variants = {
     primary:
       "bg-blue-500 text-white hover:bg-blue-600 active:bg-blue-700 shadow-md hover:shadow-lg",
+    secondary:
+      "border-2 border-gray-200 text-gray-500 hover:bg-gray-50 active:bg-gray-100",
     outline:
       "border-2 border-blue-500 text-blue-500 hover:bg-blue-50 active:bg-blue-100",
     ghost: "text-blue-500 hover:bg-blue-50 active:bg-blue-100",

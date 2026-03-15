@@ -4,6 +4,7 @@
 import { useState } from "react";
 import Button from "@/components/ui/Button";
 import OTPInput from "@/components/auth/OTPInput";
+import axiosInstance from "@/lib/axios";
 
 interface RegisterFormProps {
   onSwitch: () => void;
@@ -36,11 +37,25 @@ export default function RegisterForm({ onSwitch }: RegisterFormProps) {
     }
 
     setIsLoading(true);
-    // TODO: connect to your backend register API + send OTP
-    setTimeout(() => {
+    try {
+      const response = await axiosInstance.post("/auth/register", {
+        email: email.toLowerCase(),
+        password,
+        full_name: name
+      });
+
+      if (response.data.success) {
+        // Store email in sessionStorage for OTP verification
+        sessionStorage.setItem("verifyEmail", email);
+        setStep("otp");
+      } else {
+        setError(response.data.message || "Registration failed. Please try again.");
+      }
+    } catch (err: any) {
+      setError(err.response?.data?.message || "Registration failed. Please try again.");
+    } finally {
       setIsLoading(false);
-      setStep("otp");
-    }, 1500);
+    }
   };
 
   if (step === "otp") {
@@ -48,8 +63,9 @@ export default function RegisterForm({ onSwitch }: RegisterFormProps) {
       <OTPInput
         email={email}
         onVerified={() => {
-          // TODO: redirect to dashboard or home after verified
-          alert("Account created successfully!");
+          sessionStorage.removeItem("verifyEmail");
+          // Redirect to login or dashboard after verified
+          window.location.href = "/auth/login";
         }}
         onBack={() => setStep("register")}
       />

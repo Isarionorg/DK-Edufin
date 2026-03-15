@@ -3,6 +3,7 @@
 
 import { useRef, useState } from "react";
 import Button from "@/components/ui/Button";
+import axiosInstance from "@/lib/axios";
 
 interface OTPInputProps {
   email: string;
@@ -52,20 +53,49 @@ export default function OTPInput({ email, onVerified, onBack }: OTPInputProps) {
     }
     setError("");
     setIsLoading(true);
-    // TODO: connect to your backend OTP verification API
-    setTimeout(() => {
+
+    try {
+      const response = await axiosInstance.post("/auth/verify-otp", {
+        email,
+        otp_code: code
+      });
+
+      if (response.data.success) {
+        onVerified();
+      } else {
+        setError(response.data.message || "OTP verification failed.");
+      }
+    } catch (err: any) {
+      setError(err.response?.data?.message || "Failed to verify OTP. Please try again.");
+    } finally {
       setIsLoading(false);
-      onVerified();
-    }, 1500);
+    }
   };
 
   const handleResend = async () => {
     setIsResending(true);
     setError("");
-    // TODO: connect to your backend resend OTP API
-    setTimeout(() => {
+
+    try {
+      const response = await axiosInstance.post("/auth/resend-otp", {
+        email
+      });
+
+      if (response.data.success) {
+        // Reset OTP inputs
+        setOtp(["", "", "", "", "", ""]);
+        // Show success for 3 seconds
+        setTimeout(() => {
+          setError("");
+        }, 3000);
+      } else {
+        setError(response.data.message || "Failed to resend OTP.");
+      }
+    } catch (err: any) {
+      setError(err.response?.data?.message || "Failed to resend OTP. Please try again.");
+    } finally {
       setIsResending(false);
-    }, 1500);
+    }
   };
 
   return (

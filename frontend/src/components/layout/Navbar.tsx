@@ -5,15 +5,10 @@ import Link from "next/link";
 import { useState } from "react";
 import Image from "next/image";
 import Button from "@/components/ui/Button";
-
-// Temporary auth mock — replace with your real Zustand auth store later
-const useAuth = () => {
-  const [isLoggedIn] = useState(false);
-  return { isLoggedIn };
-};
+import { useAuth } from "@/hooks/useAuth";
 
 export default function Navbar() {
-  const { isLoggedIn } = useAuth();
+  const { user, isAuthenticated, logout, loading } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
 
   return (
@@ -53,12 +48,21 @@ export default function Navbar() {
               Student Form
             </Link>
 
-            {isLoggedIn ? (
-              <Link href="/dashboard/profile">
-                <Button variant="primary" size="sm">
-                  Profile
-                </Button>
-              </Link>
+            {isAuthenticated ? (
+              <div className="flex items-center gap-4">
+                <span className="text-sm text-gray-600">
+                  {user?.name || user?.email}
+                </span>
+                <button
+                  onClick={() => {
+                    logout();
+                    setMenuOpen(false);
+                  }}
+                  className="text-gray-600 hover:text-red-600 font-medium transition-colors duration-200"
+                >
+                  Logout
+                </button>
+              </div>
             ) : (
               <Link href="/auth/login">
                 <Button variant="primary" size="sm">
@@ -116,15 +120,21 @@ export default function Navbar() {
             >
               Contact Us
             </Link>
-            {isLoggedIn ? (
-              <Link
-                href="/dashboard/profile"
-                onClick={() => setMenuOpen(false)}
-              >
-                <Button variant="primary" size="sm">
-                  Profile
-                </Button>
-              </Link>
+            {isAuthenticated ? (
+              <>
+                <span className="text-sm text-gray-600 block">
+                  {user?.name || user?.email}
+                </span>
+                <button
+                  onClick={() => {
+                    logout();
+                    setMenuOpen(false);
+                  }}
+                  className="text-gray-600 hover:text-red-600 font-medium transition-colors duration-200"
+                >
+                  Logout
+                </button>
+              </>
             ) : (
               <Link href="/auth/login" onClick={() => setMenuOpen(false)}>
                 <Button variant="primary" size="sm">

@@ -322,7 +322,7 @@ export const login = async (req: Request<{}, {}, LoginRequestBody>, res: Respons
  *   }
  * }
  */
-export const getProfile = async (req: Request, res: Response) => {
+export const getCurrentUser = async (req: Request, res: Response) => {
   try {
     // User ID comes from auth middleware (req.user)
     const userId = (req as any).user?.user_id;
@@ -345,6 +345,11 @@ export const getProfile = async (req: Request, res: Response) => {
     return errorResponse(res, 500, 'Failed to fetch user profile', error);
   }
 };
+
+/**
+ * Alias for getCurrentUser (backward compatibility)
+ */
+export const getProfile = getCurrentUser;
 
 /**
  * @route   POST /api/auth/logout

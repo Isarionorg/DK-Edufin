@@ -2,13 +2,16 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import Button from "@/components/ui/Button";
+import axiosInstance from "@/lib/axios"
 
 interface LoginFormProps {
   onSwitch: () => void;
 }
 
 export default function LoginForm({ onSwitch }: LoginFormProps) {
+  const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -24,10 +27,27 @@ export default function LoginForm({ onSwitch }: LoginFormProps) {
     }
 
     setIsLoading(true);
-    // TODO: connect to your backend auth API
-    setTimeout(() => {
+    try {
+      const response = await axiosInstance.post("/auth/login", {
+        email: email.toLowerCase(),
+        password
+      });
+
+      if (response.data.success) {
+        // Store token if provided
+        if (response.data.data.token) {
+          localStorage.setItem("token", response.data.data.token);
+        }
+        // Redirect to dashboard or home
+        router.push("/colleges");
+      } else {
+        setError(response.data.message || "Login failed. Please try again.");
+      }
+    } catch (err: any) {
+      setError(err.response?.data?.message || "Login failed. Please try again.");
+    } finally {
       setIsLoading(false);
-    }, 1500);
+    }
   };
 
   return (

@@ -3,10 +3,10 @@
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
-import { Resend } from 'resend';
+import { sendOTPEmail, sendWelcomeEmail } from './email.service';
+import { createOTP, validateOTP, markOTPAsUsed, checkOTPRateLimit } from './otp.service';
 
 const prisma = new PrismaClient();
-const resend = new Resend(process.env.RESEND_API_KEY);
 
 // ============================================
 // TYPES & INTERFACES
@@ -79,13 +79,6 @@ const validatePhone = (phone: string): boolean => {
 // ============================================
 
 /**
- * Generates a random 6-digit OTP
- */
-const generateOTP = (): string => {
-  return Math.floor(100000 + Math.random() * 900000).toString();
-};
-
-/**
  * Hashes a password using bcrypt
  */
 const hashPassword = async (password: string): Promise<string> => {
@@ -113,66 +106,6 @@ const generateJWT = (payload: JWTPayload): string => {
   return jwt.sign(payload, secret, { expiresIn: '7d' });
 };
 
-/**
- * Sends OTP email using Resend
- */
-const sendOTPEmail = async (email: string, otp: string, userName: string): Promise<void> => {
-  try {
-    await resend.emails.send({
-      from: 'DK Edufin <onboarding@resend.dev>',
-      to: email,
-      subject: 'Verify Your Email - DK Edufin',
-      html: `
-        <!DOCTYPE html>
-        <html>
-          <head>
-            <style>
-              body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-              .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-              .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
-              .content { background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px; }
-              .otp-box { background: white; border: 2px dashed #667eea; border-radius: 10px; padding: 20px; text-align: center; margin: 20px 0; }
-              .otp-code { font-size: 32px; font-weight: bold; color: #667eea; letter-spacing: 5px; }
-              .footer { text-align: center; margin-top: 20px; font-size: 12px; color: #666; }
-              .button { background: #667eea; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; display: inline-block; margin: 20px 0; }
-            </style>
-          </head>
-          <body>
-            <div class="container">
-              <div class="header">
-                <h1>Welcome to DK Edufin! 🎓</h1>
-              </div>
-              <div class="content">
-                <p>Hi ${userName},</p>
-                <p>Thank you for registering with DK Edufin. We're excited to help you find your perfect college!</p>
-                <p>To complete your registration, please verify your email address using the OTP below:</p>
-                
-                <div class="otp-box">
-                  <p style="margin: 0; font-size: 14px; color: #666;">Your One-Time Password</p>
-                  <div class="otp-code">${otp}</div>
-                  <p style="margin: 10px 0 0 0; font-size: 12px; color: #999;">Valid for 10 minutes</p>
-                </div>
-                
-                <p><strong>Security Note:</strong> Never share this OTP with anyone. DK Edufin will never ask for your OTP via phone or email.</p>
-                
-                <p style="margin-top: 30px;">If you didn't create an account with DK Edufin, please ignore this email.</p>
-                
-                <div class="footer">
-                  <p>© ${new Date().getFullYear()} DK Edufin. All rights reserved.</p>
-                  <p>Need help? Contact us at support@dkedufin.com</p>
-                </div>
-              </div>
-            </div>
-          </body>
-        </html>
-      `
-    });
-  } catch (error) {
-    console.error('Failed to send OTP email:', error);
-    throw new Error('Failed to send verification email. Please try again.');
-  }
-};
-
 // ============================================
 // MAIN AUTH SERVICES
 // ============================================
@@ -187,7 +120,8 @@ const sendOTPEmail = async (email: string, otp: string, userName: string): Promi
  * 4. Create user in database
  * 5. Generate and store OTP
  * 6. Send OTP email
- * 7. Return success response
+ * 7. Auto-verify in dev mode
+ * 8. Return success response
  */
 export const registerUser = async (userData: RegisterUserDTO) => {
   // 1. VALIDATE INPUT
@@ -227,31 +161,20 @@ export const registerUser = async (userData: RegisterUserDTO) => {
       password_hash: hashedPassword,
       full_name: userData.full_name.trim(),
       phone: userData.phone?.trim() || null,
-      is_email_verified: false
+      is_email_verified: false // Always require email verification
     }
   });
   
-  // 5. GENERATE OTP
-  const otp = generateOTP();
-  const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes from now
-  
-  // Store OTP in database
-  await prisma.otp_verification.create({
-    data: {
-      user_id: user.user_id,
-      otp_code: otp,
-      expires_at: expiresAt,
-      is_used: false
-    }
-  });
-  
-  // 6. SEND OTP EMAIL
+  // 5. GENERATE AND STORE OTP
   try {
-    await sendOTPEmail(user.email, otp, user.full_name);
-  } catch (emailError) {
-    // Rollback user creation if email fails
+    const otp = await createOTP(user.user_id);
+    
+    // 6. SEND OTP EMAIL
+    await sendOTPEmail(user.email, otp, user.full_name || 'User');
+  } catch (error) {
+    // If OTP or email fails in production, rollback user creation
     await prisma.users.delete({ where: { user_id: user.user_id } });
-    throw emailError;
+    throw error;
   }
   
   // 7. RETURN SUCCESS
@@ -270,10 +193,10 @@ export const registerUser = async (userData: RegisterUserDTO) => {
  * 1. Validate input
  * 2. Find user by email
  * 3. Check if already verified
- * 4. Find valid OTP
- * 5. Verify OTP conditions (not expired, not used, matches)
- * 6. Mark user as verified
- * 7. Mark OTP as used
+ * 4. Validate OTP
+ * 5. Mark user as verified
+ * 6. Create user profile
+ * 7. Send welcome email
  * 8. Generate JWT token
  * 9. Return token and user data
  */
@@ -301,38 +224,43 @@ export const verifyOTP = async (verificationData: VerifyOTPDTO) => {
     throw new Error('Email is already verified. Please login.');
   }
   
-  // 4. FIND OTP
-  const otpRecord = await prisma.otp_verification.findFirst({
-    where: {
-      user_id: user.user_id,
-      otp_code: verificationData.otp_code,
-      is_used: false
-    },
-    orderBy: {
-      created_at: 'desc'
-    }
-  });
-  
-  if (!otpRecord) {
-    throw new Error('Invalid OTP. Please check and try again.');
+  // 4. VALIDATE OTP
+  try {
+    await validateOTP(user.user_id, verificationData.otp_code);
+  } catch (error) {
+    throw error;
   }
   
-  // 5. CHECK EXPIRY
-  if (otpRecord.expires_at < new Date()) {
-    throw new Error('OTP has expired. Please request a new one.');
-  }
-  
-  // 6. MARK USER AS VERIFIED
+  // 5. MARK USER AS VERIFIED
   const verifiedUser = await prisma.users.update({
     where: { user_id: user.user_id },
     data: { is_email_verified: true }
   });
   
-  // 7. MARK OTP AS USED
-  await prisma.otp_verification.update({
-    where: { otp_id: otpRecord.otp_id },
-    data: { is_used: true }
+  // Mark OTP as used
+  await markOTPAsUsed(user.user_id, verificationData.otp_code);
+  
+  // 6. CREATE USER PROFILE (if not exists)
+  const existingProfile = await prisma.user_profiles.findUnique({
+    where: { user_id: user.user_id }
   });
+  
+  if (!existingProfile) {
+    await prisma.user_profiles.create({
+      data: {
+        user_id: user.user_id,
+        is_profile_complete: false
+      }
+    });
+  }
+  
+  // 7. SEND WELCOME EMAIL
+  try {
+    await sendWelcomeEmail(user.email, user.full_name || 'User');
+  } catch (error) {
+    console.error('Failed to send welcome email:', error);
+    // Don't throw error, verification already completed
+  }
   
   // 8. GENERATE JWT TOKEN
   const token = generateJWT({
@@ -361,8 +289,8 @@ export const verifyOTP = async (verificationData: VerifyOTPDTO) => {
  * 1. Validate email
  * 2. Find user
  * 3. Check if already verified
- * 4. Generate new OTP
- * 5. Store in database
+ * 4. Check rate limit
+ * 5. Generate new OTP
  * 6. Send email
  * 7. Return success
  */
@@ -390,37 +318,21 @@ export const resendOTP = async (email: string) => {
     throw new Error('Email is already verified. Please login.');
   }
   
-  // Optional: Check recent OTP requests for monitoring (not blocking)
-  const recentOTPs = await prisma.otp_verification.findMany({
-    where: {
-      user_id: user.user_id,
-      created_at: {
-        gte: new Date(Date.now() - 60 * 60 * 1000) // Last 1 hour
-      }
-    }
-  });
-  
-  // Log for monitoring but don't block (early stage - user priority)
-  if (recentOTPs.length > 5) {
-    console.warn(`User ${user.email} has requested ${recentOTPs.length} OTPs in the last hour`);
+  // 4. CHECK RATE LIMIT (max 5 OTPs per hour)
+  const isRateLimited = await checkOTPRateLimit(user.user_id, 60, 5);
+  if (isRateLimited) {
+    throw new Error('Too many OTP requests. Please try again after 1 hour.');
   }
   
-  // 4. GENERATE NEW OTP
-  const otp = generateOTP();
-  const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
-  
-  // 5. STORE OTP
-  await prisma.otp_verification.create({
-    data: {
-      user_id: user.user_id,
-      otp_code: otp,
-      expires_at: expiresAt,
-      is_used: false
-    }
-  });
-  
-  // 6. SEND EMAIL
-  await sendOTPEmail(user.email, otp, user.full_name);
+  // 5. GENERATE NEW OTP
+  try {
+    const otp = await createOTP(user.user_id);
+    
+    // 6. SEND EMAIL
+    await sendOTPEmail(user.email, otp, user.full_name || 'User');
+  } catch (error) {
+    throw error;
+  }
   
   // 7. RETURN SUCCESS
   return {
@@ -434,7 +346,7 @@ export const resendOTP = async (email: string) => {
  * Flow:
  * 1. Validate input
  * 2. Find user by email
- * 3. Check if email is verified
+ * 3. Check if email is verified (skip in dev mode)
  * 4. Verify password
  * 5. Generate JWT token
  * 6. Return token and user data
@@ -458,8 +370,8 @@ export const loginUser = async (loginData: LoginDTO) => {
     throw new Error('Invalid email or password. Please check your credentials.');
   }
   
-  // 3. CHECK EMAIL VERIFICATION
-  if (!user.is_email_verified) {
+  // 3. CHECK EMAIL VERIFICATION (skip in development)
+  if (!user.is_email_verified && process.env.NODE_ENV === 'production') {
     throw new Error('Please verify your email before logging in. Check your inbox for the OTP.');
   }
   
@@ -491,6 +403,39 @@ export const loginUser = async (loginData: LoginDTO) => {
 };
 
 /**
+ * Get user by ID
+ */
+export const getUserById = async (userId: string) => {
+  const user = await prisma.users.findUnique({
+    where: { user_id: userId },
+    select: {
+      user_id: true,
+      email: true,
+      full_name: true,
+      phone: true,
+      is_email_verified: true,
+      created_at: true,
+      updated_at: true,
+      user_profiles: {
+        select: {
+          profile_id: true,
+          date_of_birth: true,
+          gender: true,
+          preferred_stream: true,
+          is_profile_complete: true
+        }
+      }
+    }
+  });
+
+  if (!user) {
+    throw new Error('User not found');
+  }
+
+  return user;
+};
+
+/**
  * Verify JWT token (for middleware)
  * 
  * @param token - JWT token from Authorization header
@@ -515,27 +460,4 @@ export const verifyToken = (token: string): JWTPayload => {
       throw new Error('Authentication failed. Please login again.');
     }
   }
-};
-
-/**
- * Get user by ID (for protected routes)
- */
-export const getUserById = async (userId: string) => {
-  const user = await prisma.users.findUnique({
-    where: { user_id: userId },
-    select: {
-      user_id: true,
-      email: true,
-      full_name: true,
-      phone: true,
-      is_email_verified: true,
-      created_at: true
-    }
-  });
-  
-  if (!user) {
-    throw new Error('User not found');
-  }
-  
-  return user;
 };

@@ -4,7 +4,7 @@
   "description": "Express + TypeScript backend with Prisma, Redis, and PostgreSQL",
   "main": "dist/server.js",
   "scripts": {
-    "dev": "nodemon src/server.ts",
+    "dev": "nodemon --exec tsx src/server.ts",
     "build": "tsc",
     "start": "node dist/server.js",
     "prisma:generate": "prisma generate",
@@ -28,6 +28,7 @@
   "dependencies": {
     "@prisma/client": "^5.22.0",
     "@sentry/node": "^7.99.0",
+    "@types/nodemailer": "^7.0.11",
     "bcrypt": "^6.0.0",
     "bcryptjs": "^2.4.3",
     "cloudinary": "^2.0.0",
@@ -42,6 +43,7 @@
     "ioredis": "^5.3.2",
     "jsonwebtoken": "^9.0.3",
     "morgan": "^1.10.0",
+    "nodemailer": "^8.0.2",
     "razorpay": "^2.9.2",
     "redis": "^4.6.12",
     "resend": "^3.5.0"
