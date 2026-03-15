@@ -1,4 +1,4 @@
-import type { College, CollegesApiResponse } from "./page";
+import type { College} from "./page";
 
 // ─────────────────────────────────────────────
 // DUMMY DATA
