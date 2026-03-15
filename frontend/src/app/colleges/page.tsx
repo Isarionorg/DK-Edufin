@@ -7,8 +7,9 @@ import { useAuth } from "@/hooks/useAuth";
 import axios from "@/lib/axios";
 
 export interface College {
-  id: string;
+  id: number;
   name: string;
+  shortName?: string; 
   location: string;
   state: string;
   rating: number;
@@ -19,6 +20,14 @@ export interface College {
   emoji?: string;
   color?: string;
   matchScore?: number;
+}
+
+export interface CollegesApiResponse {
+  data: College[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
 }
 
 function CollegeCard({

@@ -1,4 +1,4 @@
-import type { College} from "./page";
+import type { College, CollegesApiResponse} from "./page";
 
 // ─────────────────────────────────────────────
 // DUMMY DATA
@@ -20,7 +20,7 @@ export const MOCK_COLLEGES: College[] = [
     color: "bg-blue-500",
   },
   {
-    id: 2,
+    id: 1,
     name: "Delhi University — Lady Shri Ram College",
     shortName: "LSR Delhi",
     location: "New Delhi",
@@ -200,7 +200,7 @@ export async function fetchCollegesMock(
     const matchSearch =
       !search ||
       c.name.toLowerCase().includes(search) ||
-      c.shortName.toLowerCase().includes(search);
+      (c.shortName ?? "").toLowerCase().includes(search); 
     const matchStream = !stream || c.stream === stream;
     const matchState = !state || c.state === state;
     return matchSearch && matchStream && matchState;
