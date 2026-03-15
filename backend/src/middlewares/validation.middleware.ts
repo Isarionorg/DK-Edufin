@@ -1,31 +1,22 @@
-/**
- * Validation Middleware
- * Handles request validation using express-validator
- */
-
 import { Request, Response, NextFunction } from 'express';
 import { validationResult, ValidationChain } from 'express-validator';
 
-/**
- * Validation middleware that runs validators and returns errors if any
- */
 export const validate = (validations: ValidationChain[]) => {
-  return async (req: Request, res: Response, next: NextFunction) => {
-    // Run all validators
+  return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     await Promise.all(validations.map(validation => validation.run(req)));
 
-    // Check for errors
     const errors = validationResult(req);
-    
+
     if (!errors.isEmpty()) {
-      return res.status(400).json({
+      res.status(400).json({
         success: false,
         message: 'Validation failed',
         errors: errors.array().map(err => ({
-          field: err.param,
+          field: 'path' in err ? err.path : err.type,  // ✅ 'path' not 'param'
           message: err.msg
         }))
       });
+      return; // ✅ explicit return fixes "not all code paths return a value"
     }
 
     next();

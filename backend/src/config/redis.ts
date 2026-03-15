@@ -160,3 +160,6 @@
 // };
 
 // export default redis;
+
+// redis.ts - add this one line at the very bottom
+export {};
