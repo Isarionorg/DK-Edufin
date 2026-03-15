@@ -24,7 +24,7 @@
     "declarationMap": true,
     "sourceMap": true,
     "typeRoots": ["./node_modules/@types", "./src/types"],
-    "types": ["node"]
+    // "types": ["node"]
   },
   "include": ["src/**/*"],
   "exclude": ["node_modules", "dist", "**/*.test.ts"]
