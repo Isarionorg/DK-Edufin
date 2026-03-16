@@ -153,7 +153,7 @@ export const sendWelcomeEmail = async (
             </ul>
             
             <p style="text-align: center;">
-              <a href="http://localhost:3000/dashboard" class="button">Go to Dashboard</a>
+              <a href="http://dk-edufin.vercel.app/dashboard" class="button">Go to Dashboard</a>
             </p>
             
             <p style="margin-top: 30px;">Need assistance? Contact our support team at support@dkedufin.com</p>
