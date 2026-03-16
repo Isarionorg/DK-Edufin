@@ -13,12 +13,15 @@ let transporter: nodemailer.Transporter | null = null;
 
 if (gmailEmail && gmailAppPassword) {
   transporter = nodemailer.createTransport({
-    service: 'gmail',
+    host: "smtp.gmail.com",
+    port: 587,
+    secure: false,
+    family: 4, // 👈 forces IPv4
     auth: {
       user: gmailEmail,
       pass: gmailAppPassword
     }
-  });
+  }as any);
 
   console.log(`✅ Gmail SMTP configured. Sending emails from: ${gmailEmail}`);
 } else {
