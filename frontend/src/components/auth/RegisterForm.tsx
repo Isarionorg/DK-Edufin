@@ -35,8 +35,8 @@ export default function RegisterForm({ onSwitch }: RegisterFormProps) {
     if (!passwordRegex.test(password)) {
       setError(
         "Password must be at least 8 characters long and include at least one uppercase letter and one number."
-  );
-  return;
+      );
+      return;
 }
 
     setIsLoading(true);
@@ -47,13 +47,8 @@ export default function RegisterForm({ onSwitch }: RegisterFormProps) {
         full_name: name
       });
 
-      if (response.data.success) {
-        // Store email in sessionStorage for OTP verification
-        sessionStorage.setItem("verifyEmail", email);
-        setStep("otp");
-      } else {
-        setError(response.data.message || "Registration failed. Please try again.");
-      }
+      sessionStorage.setItem("verifyEmail", email);
+      setStep("otp");
     } catch (err: any) {
       setError(err.response?.data?.message || "Registration failed. Please try again.");
     } finally {
