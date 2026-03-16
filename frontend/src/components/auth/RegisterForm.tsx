@@ -19,6 +19,7 @@ export default function RegisterForm({ onSwitch }: RegisterFormProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
 
+  const passwordRegex = /^(?=.*[A-Z])(?=.*\d).{8,}$/;
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
@@ -31,10 +32,12 @@ export default function RegisterForm({ onSwitch }: RegisterFormProps) {
       setError("Passwords do not match.");
       return;
     }
-    if (password.length < 8) {
-      setError("Password must be at least 8 characters.");
-      return;
-    }
+    if (!passwordRegex.test(password)) {
+      setError(
+        "Password must be at least 8 characters long and include at least one uppercase letter and one number."
+  );
+  return;
+}
 
     setIsLoading(true);
     try {
