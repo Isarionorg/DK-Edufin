@@ -3,7 +3,7 @@ import { CorsOptions } from 'cors';
 // Allowed origins
 const allowedOrigins = process.env.ALLOWED_ORIGINS
   ? process.env.ALLOWED_ORIGINS.split(',')
-  : ['https://dk-edufin.vercel.app/'];
+  : ['https://dk-edufin.vercel.app'];
 
 export const corsOptions: CorsOptions = {
   origin: (origin, callback) => {
