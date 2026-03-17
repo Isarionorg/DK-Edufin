@@ -3,8 +3,8 @@
  * Handles all email sending operations
  */
 
-import { transporter, SENDER_EMAIL } from '../config/gmail';
-
+// import { transporter, SENDER_EMAIL } from '../config/gmail';
+import { sgMail, SENDER_EMAIL } from '../config/sendgrid';
 interface EmailOptions {
   to: string;
   subject: string;
@@ -15,9 +15,9 @@ interface EmailOptions {
  * Send a generic email
  */
 export const sendEmail = async (options: EmailOptions): Promise<void> => {
-  if (!transporter) {
+  if (!process.env.SENDGRID_API_KEY) {
     console.log(`\n${'='.repeat(60)}`);
-    console.log(`📧 EMAIL (NOT SENT - Gmail not configured)`);
+    console.log(`📧 EMAIL (NOT SENT - SendGrid not configured)`);
     console.log(`${'='.repeat(60)}`);
     console.log(`To: ${options.to}`);
     console.log(`Subject: ${options.subject}`);
@@ -26,17 +26,17 @@ export const sendEmail = async (options: EmailOptions): Promise<void> => {
   }
 
   try {
-    await transporter.sendMail({
-      from: SENDER_EMAIL,
+    await sgMail.send({
       to: options.to,
+      from: SENDER_EMAIL, // MUST be verified in SendGrid
       subject: options.subject,
-      html: options.html
+      html: options.html,
     });
 
     console.log(`✅ Email sent to ${options.to}`);
-  } catch (error) {
-    console.error('Failed to send email:', error);
-    throw new Error('Failed to send email. Please try again later.');
+  } catch (error: any) {
+    console.error("❌ SendGrid Error:", error?.response?.body || error);
+    throw new Error("Failed to send email. Please try again later.");
   }
 };
 
@@ -49,16 +49,16 @@ export const sendOTPEmail = async (
   userName: string
 ): Promise<void> => {
   // Log OTP to console if Gmail not configured
-  if (!transporter) {
-    console.log(`\n${'='.repeat(60)}`);
-    console.log(`📧 OTP FOR TESTING`);
-    console.log(`${'='.repeat(60)}`);
-    console.log(`Email: ${email}`);
-    console.log(`OTP Code: ${otp}`);
-    console.log(`Valid for: 10 minutes`);
-    console.log(`${'='.repeat(60)}\n`);
-    return;
-  }
+  // if (!transporter) {
+  //   console.log(`\n${'='.repeat(60)}`);
+  //   console.log(`📧 OTP FOR TESTING`);
+  //   console.log(`${'='.repeat(60)}`);
+  //   console.log(`Email: ${email}`);
+  //   console.log(`OTP Code: ${otp}`);
+  //   console.log(`Valid for: 10 minutes`);
+  //   console.log(`${'='.repeat(60)}\n`);
+  //   return;
+  // }
 
   const htmlContent = `
     <!DOCTYPE html>
@@ -118,10 +118,10 @@ export const sendWelcomeEmail = async (
   email: string,
   userName: string
 ): Promise<void> => {
-  if (!transporter) {
-    console.log(`📧 Welcome email would be sent to: ${email}`);
-    return;
-  }
+  // if (!transporter) {
+  //   console.log(`📧 Welcome email would be sent to: ${email}`);
+  //   return;
+  // }
 
   const htmlContent = `
     <!DOCTYPE html>
