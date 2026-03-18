@@ -1,33 +1,21 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Button from "@/components/ui/Button";
 import axios from "@/lib/axios";
 
 // ─────────────────────────────────────────────
-// CONSTANTS & TYPES
+// CONSTANTS
 // ─────────────────────────────────────────────
 
-export const CATEGORIES = ["GENERAL", "OBC", "SC", "ST", "EWS"];
 export const STREAMS = ["Science", "Commerce", "Arts"];
-export const EXAMS = ["JEE_MAIN", "JEE_ADVANCED", "NEET", "CLAT", "MHT_CET", "BITSAT"];
 
-export const COURSE_OPTIONS: Record<string, string[]> = {
-  Science: [
-    "B.Tech Computer Science",
-    "B.Tech Electronics",
-    "B.Tech Mechanical",
-    "MBBS",
-    "BDS",
-    "B.Pharm",
-    "B.Sc Physics",
-  ],
-  Commerce: ["B.Com", "BBA", "CA Foundation", "B.Sc Economics"],
-  Arts: ["BA", "B.A. Law", "B.Ed", "Journalism"],
-};
+// ─────────────────────────────────────────────
+// TYPES
+// ─────────────────────────────────────────────
 
 export interface StudentFormData {
-  category: string;
+  category: number | string;
   stream: string;
   examScores: Array<{
     examType: string;
@@ -54,6 +42,11 @@ export default function StudentForm({
 }: StudentFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState("");
+
+  const [categories, setCategories] = useState<any[]>([]);
+  const [exams, setExams] = useState<any[]>([]);
+  const [courses, setCourses] = useState<any[]>([]);
+
   const [form, setForm] = useState<StudentFormData>({
     category: "",
     stream: "",
@@ -61,16 +54,55 @@ export default function StudentForm({
     preferredCourses: [],
   });
 
-  const handleStreamChange = (stream: string) => {
+  // ─────────────────────────────────────────────
+  // FETCH INITIAL DATA
+  // ─────────────────────────────────────────────
+
+  useEffect(() => {
+    const fetchInitialData = async () => {
+      try {
+        const [catRes, examRes] = await Promise.all([
+          axios.get("/student/categories"),
+          axios.get("/student/exams"),
+        ]);
+
+        setCategories(catRes.data.data);
+        setExams(examRes.data.data);
+      } catch (err) {
+        console.error("Failed to fetch initial data", err);
+      }
+    };
+
+    fetchInitialData();
+  }, []);
+
+  // Debug
+  useEffect(() => {
+    console.log("EXAMS:", exams);
+  }, [exams]);
+
+  // ─────────────────────────────────────────────
+  // HANDLERS
+  // ─────────────────────────────────────────────
+
+  const handleStreamChange = async (stream: string) => {
     setForm({
       ...form,
       stream,
       preferredCourses: [],
     });
+
+    try {
+      const res = await axios.get(`/student/courses?stream=${stream}`);
+      setCourses(res.data.data);
+    } catch (err) {
+      console.error(err);
+    }
   };
 
   const toggleExam = (exam: string) => {
     const exists = form.examScores.find((e) => e.examType === exam);
+
     if (exists) {
       setForm({
         ...form,
@@ -108,54 +140,86 @@ export default function StudentForm({
     });
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError("");
-
-    if (!form.category || !form.stream || form.examScores.length === 0) {
-      setError("Please fill in all required fields");
-      return;
-    }
-
-    if (form.preferredCourses.length === 0) {
-      setError("Please select at least one course preference");
-      return;
-    }
-
-    setIsSubmitting(true);
-
-    try {
-      const token = localStorage.getItem("token");
-      await axios.post(
-        "/student/profile/complete",
-        {
-          category: form.category,
-          stream: form.stream,
-          examScores: form.examScores,
-          preferredCourses: form.preferredCourses,
-        },
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
-
-      onSuccess();
-    } catch (err: any) {
-      setError(err.response?.data?.message || "Failed to save profile");
-    } finally {
-      setIsSubmitting(false);
-    }
+    const getExamInputType = (examName: string) => {
+    if (examName === "CUET") return "score";
+    if (examName === "JEE_MAIN" || examName === "JEE_ADVANCED") return "rank";
+    return "both";
   };
 
-  const availableCourses =
-    form.stream && COURSE_OPTIONS[form.stream]
-      ? COURSE_OPTIONS[form.stream]
-      : [];
+  // ─────────────────────────────────────────────
+  // SUBMIT (TEMP - WILL FIX IN STEP 3)
+  // ─────────────────────────────────────────────
 
-  // Form Content (reusable for both page and modal)
-  const formContent = (
+  const handleSubmit = async (e: React.FormEvent) => {
+  e.preventDefault();
+  setError("");
+
+  if (!form.category || !form.stream || form.examScores.length === 0) {
+    setError("Please fill in all required fields");
+    return;
+  }
+
+  if (form.preferredCourses.length === 0) {
+    setError("Please select at least one course preference");
+    return;
+  }
+
+  setIsSubmitting(true);
+
+  try {
+    // 🔹 CATEGORY → ID
+    const selectedCategoryId = form.category;
+
+    // 🔹 EXAMS → IDs
+    const examPayload = form.examScores.map((e) => {
+      const matchedExam = exams.find(
+        (ex) => ex.exam_name === e.examType
+      );
+
+      return {
+        exam_id: matchedExam?.exam_id,
+        score_value: e.marks,
+        rank_value: e.rank,
+        year: new Date().getFullYear(),
+      };
+    });
+
+    // 🔹 COURSES → IDs
+    const coursePayload = form.preferredCourses.map((course, index) => {
+      const matchedCourse = courses.find(
+        (c) => c.course_name === course
+      );
+
+      return {
+        course_id: matchedCourse?.course_id,
+        priority: index + 1,
+      };
+    });
+
+    const payload = {
+      profile: {
+        category_id: selectedCategoryId,
+        preferred_stream: form.stream,
+      },
+      exam_scores: examPayload,
+      course_preferences: coursePayload,
+    };
+
+    await axios.post("/student/profile/complete", payload);
+
+    onSuccess();
+  } catch (err: any) {
+    setError(err.response?.data?.message || "Failed to save profile");
+  } finally {
+    setIsSubmitting(false);
+  }
+};
+
+  // ─────────────────────────────────────────────
+  // UI
+  // ─────────────────────────────────────────────
+
+  return (
     <form onSubmit={handleSubmit} className="space-y-8">
       {error && (
         <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-700">
@@ -163,44 +227,48 @@ export default function StudentForm({
         </div>
       )}
 
-      {/* Category Selection */}
+      {/* CATEGORY */}
       <div>
-        <label className="block text-lg font-semibold text-gray-900 mb-4">
+        <label className="block text-lg font-semibold mb-4">
           Category *
         </label>
+
         <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-          {CATEGORIES.map((cat) => (
+          {categories.map((cat) => (
             <button
-              key={cat}
+              key={cat.category_id}
               type="button"
-              onClick={() => setForm({ ...form, category: cat })}
-              className={`p-3 rounded-lg border-2 font-medium transition-all ${
-                form.category === cat
-                  ? "border-blue-600 bg-blue-50 text-blue-700"
-                  : "border-gray-200 hover:border-gray-300"
+              onClick={() =>
+                setForm({ ...form, category: cat.category_id })
+              }
+              className={`p-3 rounded-lg border-2 ${
+                form.category === cat.category_id
+                  ? "border-blue-600 bg-blue-50"
+                  : "border-gray-200"
               }`}
             >
-              {cat}
+              {cat.category_code === "UR" ? "GENERAL" : cat.category_code}
             </button>
           ))}
         </div>
       </div>
 
-      {/* Stream Selection */}
+      {/* STREAM */}
       <div>
-        <label className="block text-lg font-semibold text-gray-900 mb-4">
-          Stream Preference *
+        <label className="block text-lg font-semibold mb-4">
+          Stream *
         </label>
+
         <div className="grid grid-cols-3 gap-3">
           {STREAMS.map((stream) => (
             <button
               key={stream}
               type="button"
               onClick={() => handleStreamChange(stream)}
-              className={`p-3 rounded-lg border-2 font-medium transition-all ${
+              className={`p-3 rounded-lg border-2 ${
                 form.stream === stream
-                  ? "border-blue-600 bg-blue-50 text-blue-700"
-                  : "border-gray-200 hover:border-gray-300"
+                  ? "border-blue-600 bg-blue-50"
+                  : "border-gray-200"
               }`}
             >
               {stream}
@@ -209,33 +277,39 @@ export default function StudentForm({
         </div>
       </div>
 
-      {/* Exam Scores */}
+      {/* EXAMS */}
       <div>
-        <label className="block text-lg font-semibold text-gray-900 mb-4">
-          Exam Scores *
+        <label className="block text-lg font-semibold mb-4">
+          Exams *
         </label>
-        <div className="space-y-3">
-          {EXAMS.map((exam) => {
-            const selected = form.examScores.find((e) => e.examType === exam);
-            return (
-              <div key={exam}>
-                <button
-                  type="button"
-                  onClick={() => toggleExam(exam)}
-                  className={`w-full p-3 rounded-lg border-2 font-medium text-left transition-all ${
-                    selected
-                      ? "border-blue-600 bg-blue-50"
-                      : "border-gray-200 hover:border-gray-300"
-                  }`}
-                >
-                  {exam.replace(/_/g, " ")}
-                </button>
-                {selected && (
-                  <div className="mt-3 ml-4 space-y-3">
+
+        {exams.map((examObj) => {
+          const exam = examObj.exam_name;
+          const selected = form.examScores.find(
+            (e) => e.examType === exam
+          );
+
+          return (
+            <div key={examObj.exam_id}>
+              <button
+                type="button"
+                onClick={() => toggleExam(exam)}
+                className={`w-full p-3 rounded-lg border-2 text-left ${
+                  selected
+                    ? "border-blue-600 bg-blue-50"
+                    : "border-gray-200"
+                }`}
+              >
+                {exam.replace("_", " ")}
+              </button>
+
+              {selected && (
+                <div className="mt-3 ml-4 space-y-3">
+
+                  {/* CUET → SCORE */}
+                  {getExamInputType(exam) === "score" && (
                     <div>
-                      <label className="block text-sm text-gray-600 mb-1">
-                        Score/Marks
-                      </label>
+                      <label className="text-sm text-gray-600">Score / Percentile</label>
                       <input
                         type="number"
                         placeholder="Enter your score"
@@ -243,13 +317,15 @@ export default function StudentForm({
                         onChange={(e) =>
                           updateExamScore(exam, "marks", e.target.value)
                         }
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full px-4 py-2 border rounded-lg"
                       />
                     </div>
+                  )}
+
+                  {/* JEE → RANK */}
+                  {getExamInputType(exam) === "rank" && (
                     <div>
-                      <label className="block text-sm text-gray-600 mb-1">
-                        Rank (optional)
-                      </label>
+                      <label className="text-sm text-gray-600">Rank</label>
                       <input
                         type="number"
                         placeholder="Enter your rank"
@@ -257,69 +333,75 @@ export default function StudentForm({
                         onChange={(e) =>
                           updateExamScore(exam, "rank", e.target.value)
                         }
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full px-4 py-2 border rounded-lg"
                       />
                     </div>
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
+                  )}
+
+                  {/* FALLBACK */}
+                  {getExamInputType(exam) === "both" && (
+                    <>
+                      <input
+                        type="number"
+                        placeholder="Score"
+                        value={selected.marks || ""}
+                        onChange={(e) =>
+                          updateExamScore(exam, "marks", e.target.value)
+                        }
+                        className="w-full px-4 py-2 border rounded-lg"
+                      />
+                      <input
+                        type="number"
+                        placeholder="Rank"
+                        value={selected.rank || ""}
+                        onChange={(e) =>
+                          updateExamScore(exam, "rank", e.target.value)
+                        }
+                        className="w-full px-4 py-2 border rounded-lg"
+                      />
+                    </>
+                  )}
+
+                </div>
+              )}
+            </div>
+          );
+        })}
       </div>
 
-      {/* Course Preferences */}
+      {/* COURSES */}
       {form.stream && (
         <div>
-          <label className="block text-lg font-semibold text-gray-900 mb-4">
+          <label className="block text-lg font-semibold mb-4">
             Preferred Courses *
           </label>
-          <div className="space-y-3">
-            {availableCourses.map((course) => (
-              <label
-                key={course}
-                className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50 cursor-pointer"
-              >
-                <input
-                  type="checkbox"
-                  checked={form.preferredCourses.includes(course)}
-                  onChange={() => toggleCourse(course)}
-                  className="w-5 h-5 rounded border-gray-300 cursor-pointer"
-                />
-                <span className="text-gray-700 font-medium">{course}</span>
-              </label>
-            ))}
-          </div>
+
+          {courses.map((course) => (
+            <label key={course.course_id} className="flex gap-2">
+              <input
+                type="checkbox"
+                checked={form.preferredCourses.includes(
+                  course.course_name
+                )}
+                onChange={() => toggleCourse(course.course_name)}
+              />
+              {course.course_name}
+            </label>
+          ))}
         </div>
       )}
 
-      {/* Action Buttons */}
-      <div className={`flex gap-3 pt-6 border-t border-gray-200 ${isModal ? "" : ""}`}>
+      {/* BUTTONS */}
+      <div className="flex gap-3">
         {onCancel && (
-          <Button
-            variant="secondary"
-            size="md"
-            type="button"
-            onClick={onCancel}
-            disabled={isSubmitting}
-            className="flex-1"
-          >
-            {isModal ? "Cancel" : "Back"}
+          <Button type="button" onClick={onCancel}>
+            Back
           </Button>
         )}
-        <Button
-          variant="primary"
-          size="md"
-          type="submit"
-          disabled={isSubmitting}
-          className={onCancel ? "flex-1" : "w-full"}
-        >
+        <Button type="submit">
           {isSubmitting ? "Saving..." : "Complete Profile"}
         </Button>
       </div>
     </form>
   );
-
-  // Return form content or wrapped content based on context
-  return formContent;
 }
