@@ -10,7 +10,7 @@ export interface StudentProfileDTO {
   date_of_birth?: string;
   gender?: string;
   category_id: number;
-  preferred_stream: string;
+  stream_id: number;
 }
 
 export interface ExamScoreDTO {
@@ -43,8 +43,19 @@ const validateCategoryId = async (category_id: number): Promise<boolean> => {
   return !!category;
 };
 
-const validateStream = (stream: string) =>
-  ['Science', 'Commerce', 'Arts'].includes(stream);
+const validateStreamId = async (
+  stream_id: number
+): Promise<boolean> => {
+  const stream =
+    await prisma.eligible_streams.findUnique({
+      where: { stream_id }
+    });
+
+  return !!stream;
+};
+
+// const validateStream = (stream: string) =>
+//   ['Science', 'Commerce', 'Arts'].includes(stream);
 
 const validateGender = (gender?: string) =>
   !gender ||
@@ -80,7 +91,8 @@ export const getProfileCompletionStatus = async (userId: string) => {
 
   if (!profile) missing.push('Profile');
   if (!profile?.category_id) missing.push('Category');
-  if (!profile?.preferred_stream) missing.push('Stream');
+  if (!profile?.stream_id)
+  missing.push('Stream');
   if (!examScores.length) missing.push('Exam Scores');
   if (!coursePreferences.length) missing.push('Course Preferences');
 
@@ -103,8 +115,13 @@ export const completeStudentForm = async (
   throw new Error('Invalid category');
 }
 
-  if (!validateStream(data.profile.preferred_stream))
-    throw new Error('Invalid stream');
+  if (
+  !(await validateStreamId(
+    data.profile.stream_id
+  ))
+) {
+  throw new Error('Invalid stream');
+}
 
   if (!validateGender(data.profile.gender))
     throw new Error('Invalid gender');
@@ -125,7 +142,8 @@ export const completeStudentForm = async (
           : null,
         gender: data.profile.gender || null,
         category_id: data.profile.category_id,
-        preferred_stream: data.profile.preferred_stream,
+        stream_id:
+  data.profile.stream_id,
         is_profile_complete: true
       },
       update: {
@@ -134,7 +152,8 @@ export const completeStudentForm = async (
           : undefined,
         gender: data.profile.gender || undefined,
         category_id: data.profile.category_id,
-        preferred_stream: data.profile.preferred_stream,
+        stream_id:
+  data.profile.stream_id,
         is_profile_complete: true
       }
     });
@@ -243,8 +262,8 @@ export const updateStudentProfile = async (
       }),
       ...(data.gender && { gender: data.gender }),
       ...(data.category_id && { category_id: data.category_id }),
-      ...(data.preferred_stream && {
-        preferred_stream: data.preferred_stream
+      ...(data.stream_id && {
+        stream_id: data.stream_id
       })
     }
   });
@@ -265,10 +284,25 @@ export const getAvailableExams = async () => {
   });
 };
 
-export const getAvailableCourses = async (stream?: string) => {
-  return prisma.courses.findMany({
-    where: stream ? { stream } : undefined
-  });
+export const getAvailableCourses = async (
+  streamId?: number
+) => {
+  const mappings =
+    await prisma.course_eligible_streams.findMany({
+      where: streamId
+        ? {
+            stream_id: streamId
+          }
+        : undefined,
+
+      include: {
+        courses: true
+      }
+    });
+
+  return mappings
+    .map((m) => m.courses)
+    .filter(Boolean);
 };
 
 export const getCategories = async () => {
@@ -276,3 +310,19 @@ export const getCategories = async () => {
     orderBy: { category_id: 'asc' }
   });
 };
+
+export const getStreams = async (examId: number) => {
+  return prisma.eligible_streams.findMany({
+    where: {
+      exam_eligible_streams: {
+        some: {
+          exam_id: examId
+        }
+      }
+    },
+    orderBy: {
+      stream_name: 'asc'
+    }
+  });
+};
+

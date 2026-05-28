@@ -11,5 +11,5 @@ router.get('/profile/status', studentController.getProfileStatus);
 router.get('/exams', studentController.getExams);
 router.get('/courses', studentController.getCourses);
 router.get('/categories', studentController.getCategories);
-
+router.get('/streams', studentController.getStreams);
 export default router;

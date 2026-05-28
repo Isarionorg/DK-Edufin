@@ -247,3 +247,42 @@ export const getCategories = async (req: AuthRequest, res: Response) => {
     return errorResponse(res, 500, 'Failed to retrieve categories', error);
   }
 };
+
+/**
+ * @route   GET /api/student/streams
+ * @desc    Get list of streams
+ * @access  Protected
+ */
+export const getStreams = async (
+  req: AuthRequest,
+  res: Response
+) => {
+  try {
+    const examId = Number(req.query.examId);
+
+    if (!examId) {
+      return errorResponse(
+        res,
+        400,
+        "examId is required"
+      );
+    }
+
+    const streams =
+      await studentService.getStreams(examId);
+
+    return successResponse(
+      res,
+      200,
+      streams,
+      "Streams retrieved successfully"
+    );
+  } catch (error: any) {
+    return errorResponse(
+      res,
+      500,
+      "Failed to retrieve streams",
+      error
+    );
+  }
+};

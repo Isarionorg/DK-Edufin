@@ -4,7 +4,7 @@
  */
 
 // import { transporter, SENDER_EMAIL } from '../config/gmail';
-import { sgMail, SENDER_EMAIL } from '../config/sendgrid';
+import { transporter, SENDER_EMAIL } from "../config/brevo";
 interface EmailOptions {
   to: string;
   subject: string;
@@ -15,27 +15,40 @@ interface EmailOptions {
  * Send a generic email
  */
 export const sendEmail = async (options: EmailOptions): Promise<void> => {
-  if (!process.env.SENDGRID_API_KEY) {
+  // Check if transporter is configured
+  if (!transporter) {
     console.log(`\n${'='.repeat(60)}`);
-    console.log(`📧 EMAIL (NOT SENT - SendGrid not configured)`);
+    console.log(`📧 EMAIL (NOT SENT - Brevo not configured)`);
     console.log(`${'='.repeat(60)}`);
+    console.log(`BREVO_LOGIN exists: ${!!process.env.BREVO_LOGIN}`);
+    console.log(`BREVO_SMTP_KEY exists: ${!!process.env.BREVO_SMTP_KEY}`);
     console.log(`To: ${options.to}`);
     console.log(`Subject: ${options.subject}`);
+    console.log(`From: ${SENDER_EMAIL}`);
     console.log(`${'='.repeat(60)}\n`);
     return;
   }
 
   try {
-    await sgMail.send({
+    console.log(`📤 Sending email via Brevo:`);
+    console.log(`   From: ${SENDER_EMAIL}`);
+    console.log(`   To: ${options.to}`);
+    console.log(`   Subject: ${options.subject}`);
+
+    const response = await transporter.sendMail({
       to: options.to,
-      from: SENDER_EMAIL, // MUST be verified in SendGrid
+      from: SENDER_EMAIL,
       subject: options.subject,
       html: options.html,
     });
 
-    console.log(`✅ Email sent to ${options.to}`);
+    console.log(`✅ Email sent successfully. Message ID: ${response.messageId}`);
   } catch (error: any) {
-    console.error("❌ SendGrid Error:", error?.response?.body || error);
+    console.error("❌ Brevo SMTP Error Details:", {
+      message: error?.message,
+      error: error,
+      stack: error?.stack
+    });
     throw new Error("Failed to send email. Please try again later.");
   }
 };
