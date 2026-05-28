@@ -221,9 +221,11 @@ export const getExams = async (req: AuthRequest, res: Response) => {
  */
 export const getCourses = async (req: AuthRequest, res: Response) => {
   try {
-    const stream = req.query.stream as string | undefined;
-    
-    const courses = await studentService.getAvailableCourses(stream);
+    const streamId = req.query.streamId
+  ? Number(req.query.streamId)
+  : undefined;
+
+const courses = await studentService.getAvailableCourses(streamId);
     
     return successResponse(res, 200, courses, 'Courses retrieved successfully');
     
