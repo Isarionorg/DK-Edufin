@@ -3,8 +3,7 @@
  * Handles all email sending operations
  */
 
-// import { transporter, SENDER_EMAIL } from '../config/gmail';
-import { transporter, SENDER_EMAIL } from "../config/brevo";
+import { sendBrevoEmail } from "../config/brevo";
 interface EmailOptions {
   to: string;
   subject: string;
@@ -15,36 +14,32 @@ interface EmailOptions {
  * Send a generic email
  */
 export const sendEmail = async (options: EmailOptions): Promise<void> => {
-  // Check if transporter is configured
-  if (!transporter) {
+  // Check if Brevo API key is configured
+  if (!process.env.BREVO_API_KEY) {
     console.log(`\n${'='.repeat(60)}`);
-    console.log(`📧 EMAIL (NOT SENT - Brevo not configured)`);
+    console.log(`📧 EMAIL (NOT SENT - Brevo API not configured)`);
     console.log(`${'='.repeat(60)}`);
-    console.log(`BREVO_LOGIN exists: ${!!process.env.BREVO_LOGIN}`);
-    console.log(`BREVO_SMTP_KEY exists: ${!!process.env.BREVO_SMTP_KEY}`);
+    console.log(`BREVO_API_KEY exists: ${!!process.env.BREVO_API_KEY}`);
     console.log(`To: ${options.to}`);
     console.log(`Subject: ${options.subject}`);
-    console.log(`From: ${SENDER_EMAIL}`);
     console.log(`${'='.repeat(60)}\n`);
     return;
   }
 
   try {
-    console.log(`📤 Sending email via Brevo:`);
-    console.log(`   From: ${SENDER_EMAIL}`);
+    console.log(`📤 Sending email via Brevo API:`);
     console.log(`   To: ${options.to}`);
     console.log(`   Subject: ${options.subject}`);
 
-    const response = await transporter.sendMail({
+    await sendBrevoEmail({
       to: options.to,
-      from: SENDER_EMAIL,
       subject: options.subject,
-      html: options.html,
+      htmlContent: options.html,
     });
 
-    console.log(`✅ Email sent successfully. Message ID: ${response.messageId}`);
+    console.log(`✅ Email sent successfully`);
   } catch (error: any) {
-    console.error("❌ Brevo SMTP Error Details:", {
+    console.error("❌ Brevo API Error Details:", {
       message: error?.message,
       error: error,
       stack: error?.stack
