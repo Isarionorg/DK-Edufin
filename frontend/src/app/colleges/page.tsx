@@ -3,32 +3,48 @@
 import { useState, useEffect } from "react";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import StudentProfileModal from "@/components/auth/StudentProfileModal";
-import { useAuth } from "@/hooks/useAuth";
 import axios from "@/lib/axios";
 
+// ─────────────────────────────────────────────
+// TYPES — matching service response exactly
+// ─────────────────────────────────────────────
+
+export interface Course {
+  course_id: number;
+  course_name: string;
+  degree_type: string | null;
+  specialization: string | null;
+  cutoff_value: number | null;
+  cutoff_rank: number | null;
+  exam_name: string;
+  is_preferred: boolean;
+}
+
 export interface College {
-  id: number;
-  name: string;
-  shortName?: string; 
-  location: string;
+  college_id: number;
+  college_name: string;
+  college_type: string;
+  city: string;
   state: string;
-  rating: number;
-  type: "Government" | "Private" | "Deemed";
-  stream: "Science" | "Commerce" | "Arts";
-  courses: string[];
-  entranceExam: string;
-  emoji?: string;
-  color?: string;
-  matchScore?: number;
+  website_url: string | null;
+  is_partner: boolean;
+  courses: Course[];
+  match_score: number;
 }
 
 export interface CollegesApiResponse {
+  success: boolean;
+  personalized: boolean;
   data: College[];
   total: number;
   page: number;
   pageSize: number;
   totalPages: number;
 }
+
+// ─────────────────────────────────────────────
+// COLLEGE CARD
+// ─────────────────────────────────────────────
 
 function CollegeCard({
   college,
@@ -37,58 +53,61 @@ function CollegeCard({
   college: College;
   onClick: () => void;
 }) {
-  const emoji = college.emoji || "🏫";
-  const color = college.color || "bg-blue-500";
+  const preferredCourses = college.courses.filter(c => c.is_preferred);
+  const otherCourses = college.courses.filter(c => !c.is_preferred);
+  const displayCourses = [...preferredCourses, ...otherCourses];
 
   return (
     <div
-      className="bg-white rounded-2xl shadow-sm border border-gray-100 hover:shadow-xl transition-all duration-300 hover:-translate-y-1 overflow-hidden cursor-pointer group"
+      className="bg-white rounded-2xl shadow-sm border border-gray-100 hover:shadow-xl transition-all duration-300 hover:-translate-y-1 overflow-hidden cursor-pointer"
       onClick={onClick}
     >
-      <div className={`${color} p-5 flex items-center gap-4`}>
+      {/* HEADER */}
+      <div className="bg-blue-500 p-5 flex items-center gap-4">
         <div className="w-14 h-14 bg-white/20 rounded-2xl flex items-center justify-center text-3xl">
-          {emoji}
+          🏫
         </div>
-        <div>
-          <h3 className="text-white font-bold text-base leading-tight">
-            {college.name}
+        <div className="flex-1 min-w-0">
+          <h3 className="text-white font-bold text-base leading-tight truncate">
+            {college.college_name}
           </h3>
-          <p className="text-white/80 text-xs mt-0.5">{college.type}</p>
+          <p className="text-white/80 text-xs mt-0.5">{college.college_type}</p>
         </div>
+        {college.is_partner && (
+          <span className="text-xs bg-yellow-400 text-yellow-900 font-bold px-2 py-1 rounded-lg shrink-0">
+            Partner
+          </span>
+        )}
       </div>
 
-      <div className="p-5">
-        <div className="flex items-center justify-between mb-3">
-          <span className="text-gray-500 text-xs flex items-center gap-1">
-            📍 {college.location}, {college.state}
-          </span>
-          <span className="flex items-center gap-1 bg-yellow-50 text-yellow-600 text-xs font-bold px-2 py-1 rounded-lg border border-yellow-100">
-            ⭐ {college.rating}
-          </span>
-        </div>
+      <div className="p-5 space-y-3">
+        {/* LOCATION */}
+        <span className="text-gray-500 text-xs flex items-center gap-1">
+          📍 {college.city}, {college.state}
+        </span>
 
-        {college.matchScore && (
-          <div className="mb-3 p-2 bg-green-50 rounded-lg">
+        {/* MATCH SCORE — only for personalized results */}
+        {college.match_score > 0 && (
+          <div className="p-2 bg-green-50 rounded-lg">
             <span className="text-xs font-semibold text-green-700">
-              Match Score: {(college.matchScore * 100).toFixed(0)}%
+              ✅ Match Score: {college.match_score}%
             </span>
           </div>
         )}
 
-        <div className="flex items-center gap-2 mb-3">
-          <span className="text-xs text-gray-400">Entrance:</span>
-          <span className="text-xs font-semibold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-lg">
-            {college.entranceExam}
-          </span>
-        </div>
-
+        {/* COURSES */}
         <div className="flex flex-wrap gap-1.5">
-          {college.courses.slice(0, 3).map((course) => (
+          {displayCourses.slice(0, 3).map((course) => (
             <span
-              key={course}
-              className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded-lg"
+              key={course.course_id}
+              className={`text-xs px-2 py-1 rounded-lg ${
+                course.is_preferred
+                  ? "bg-blue-100 text-blue-700 font-semibold"
+                  : "bg-gray-100 text-gray-600"
+              }`}
             >
-              {course}
+              {course.course_name}
+              {course.specialization ? ` (${course.specialization})` : ""}
             </span>
           ))}
           {college.courses.length > 3 && (
@@ -108,6 +127,10 @@ function CollegeCard({
   );
 }
 
+// ─────────────────────────────────────────────
+// COLLEGE MODAL
+// ─────────────────────────────────────────────
+
 function CollegeModal({
   college,
   onClose,
@@ -115,70 +138,112 @@ function CollegeModal({
   college: College;
   onClose: () => void;
 }) {
+  const preferredCourses = college.courses.filter(c => c.is_preferred);
+  const otherCourses = college.courses.filter(c => !c.is_preferred);
+
   return (
     <div
       className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center px-4"
       onClick={onClose}
     >
       <div
-        className="bg-white rounded-3xl shadow-2xl max-w-lg w-full overflow-hidden"
+        className="bg-white rounded-3xl shadow-2xl max-w-lg w-full overflow-hidden max-h-[90vh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="bg-linear-to-r from-blue-500 to-blue-600 p-7 flex items-center gap-5">
+        {/* HEADER */}
+        <div className="bg-gradient-to-r from-blue-500 to-blue-600 p-7 flex items-center gap-5">
           <div className="w-16 h-16 bg-white/20 rounded-2xl flex items-center justify-center text-4xl">
-            {college.emoji || "🏫"}
+            🏫
           </div>
-          <div>
-            <h2 className="text-white font-bold text-xl">{college.name}</h2>
-            <p className="text-white/80 text-sm">{college.type}</p>
+          <div className="flex-1 min-w-0">
+            <h2 className="text-white font-bold text-xl leading-tight">
+              {college.college_name}
+            </h2>
+            <p className="text-white/80 text-sm">{college.college_type}</p>
           </div>
         </div>
 
-        <div className="p-7 space-y-4">
+        <div className="p-7 space-y-5">
+          {/* INFO GRID */}
           <div className="grid grid-cols-2 gap-4">
             {[
               {
                 label: "Location",
-                value: `${college.location}, ${college.state}`,
-                className: "text-gray-800",
+                value: `${college.city}, ${college.state}`,
               },
               {
-                label: "Rating",
-                value: `⭐ ${college.rating} / 5`,
-                className: "text-yellow-500 font-bold",
+                label: "Type",
+                value: college.college_type,
               },
-              {
-                label: "College Type",
-                value: college.type,
-                className: "text-gray-800",
-              },
-              {
-                label: "Entrance Exam",
-                value: college.entranceExam,
-                className: "text-blue-600",
-              },
-            ].map(({ label, value, className }) => (
+              ...(college.match_score > 0
+                ? [{ label: "Match Score", value: `${college.match_score}%` }]
+                : []),
+              ...(college.website_url
+                ? [{ label: "Website", value: college.website_url }]
+                : []),
+            ].map(({ label, value }) => (
               <div key={label} className="bg-gray-50 rounded-xl p-4">
                 <p className="text-xs text-gray-400 mb-1">{label}</p>
-                <p className={`font-semibold text-sm ${className}`}>{value}</p>
+                <p className="font-semibold text-sm text-gray-800 truncate">
+                  {value}
+                </p>
               </div>
             ))}
           </div>
 
-          <div>
-            <p className="text-xs text-gray-400 mb-2">Courses Offered</p>
-            <div className="flex flex-wrap gap-2">
-              {college.courses.map((course) => (
-                <span
-                  key={course}
-                  className="text-sm bg-blue-50 text-blue-600 px-3 py-1.5 rounded-xl font-medium border border-blue-100"
-                >
-                  {course}
-                </span>
-              ))}
+          {/* PREFERRED COURSES */}
+          {preferredCourses.length > 0 && (
+            <div>
+              <p className="text-xs text-gray-400 mb-2 font-semibold uppercase tracking-wide">
+                Your Preferred Courses
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {preferredCourses.map((course) => (
+                  <div
+                    key={course.course_id}
+                    className="bg-blue-50 border border-blue-100 rounded-xl p-3"
+                  >
+                    <p className="text-sm font-semibold text-blue-700">
+                      {course.course_name}
+                      {course.specialization
+                        ? ` — ${course.specialization}`
+                        : ""}
+                    </p>
+                    <p className="text-xs text-blue-400 mt-0.5">
+                      {course.exam_name} •{" "}
+                      {course.cutoff_value
+                        ? `Cutoff: ${course.cutoff_value}`
+                        : course.cutoff_rank
+                        ? `Rank: ${course.cutoff_rank}`
+                        : ""}
+                    </p>
+                  </div>
+                ))}
+              </div>
             </div>
-          </div>
+          )}
 
+          {/* OTHER COURSES */}
+          {otherCourses.length > 0 && (
+            <div>
+              <p className="text-xs text-gray-400 mb-2 font-semibold uppercase tracking-wide">
+                Other Available Courses
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {otherCourses.map((course) => (
+                  <span
+                    key={course.course_id}
+                    className="text-sm bg-gray-100 text-gray-600 px-3 py-1.5 rounded-xl"
+                  >
+                    {course.course_name}
+                    {course.specialization ? ` (${course.specialization})` : ""}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* ACTIONS */}
           <div className="flex gap-3 pt-2">
             <button
               onClick={onClose}
@@ -186,15 +251,26 @@ function CollegeModal({
             >
               Close
             </button>
-            <button className="flex-1 py-3 bg-blue-500 text-white font-semibold rounded-xl hover:bg-blue-600 transition-all text-sm">
-              Get Guidance →
-            </button>
+            {college.website_url && (
+              <a
+                href={college.website_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex-1 py-3 bg-blue-500 text-white font-semibold rounded-xl hover:bg-blue-600 transition-all text-sm text-center"
+              >
+                Visit Website →
+              </a>
+            )}
           </div>
         </div>
       </div>
     </div>
   );
 }
+
+// ─────────────────────────────────────────────
+// SKELETON
+// ─────────────────────────────────────────────
 
 function SkeletonCard() {
   return (
@@ -209,19 +285,15 @@ function SkeletonCard() {
   );
 }
 
-function ErrorState({
-  message,
-  onRetry,
-}: {
-  message: string;
-  onRetry: () => void;
-}) {
+// ─────────────────────────────────────────────
+// ERROR / EMPTY STATES
+// ─────────────────────────────────────────────
+
+function ErrorState({ message, onRetry }: { message: string; onRetry: () => void }) {
   return (
     <div className="col-span-full text-center py-20">
       <div className="text-6xl mb-4">⚠️</div>
-      <h3 className="text-xl font-bold text-gray-700 mb-2">
-        Failed to load colleges
-      </h3>
+      <h3 className="text-xl font-bold text-gray-700 mb-2">Failed to load colleges</h3>
       <p className="text-gray-400 mb-6 text-sm">{message}</p>
       <button
         onClick={onRetry}
@@ -237,90 +309,89 @@ function EmptyState() {
   return (
     <div className="col-span-full text-center py-20">
       <div className="text-6xl mb-4">🔍</div>
-      <h3 className="text-xl font-bold text-gray-700 mb-2">
-        No colleges found
-      </h3>
-      <p className="text-gray-400">Try adjusting your search or filters</p>
+      <h3 className="text-xl font-bold text-gray-700 mb-2">No colleges found</h3>
+      <p className="text-gray-400 text-sm">
+        No colleges match your exam scores and preferences yet. Try updating your profile.
+      </p>
     </div>
   );
 }
 
+// ─────────────────────────────────────────────
+// MAIN PAGE CONTENT
+// ─────────────────────────────────────────────
+
 function CollegesPageContent() {
-  const { user } = useAuth();
   const [colleges, setColleges] = useState<College[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedCollege, setSelectedCollege] = useState<College | null>(null);
-  const [profileComplete, setProfileComplete] = useState(false);
+  const [isPersonalized, setIsPersonalized] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
+  const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
 
-  useEffect(() => {
-    const checkProfileAndFetchColleges = async () => {
-      try {
-        const token = localStorage.getItem("token");
-        if (!token) return;
+  const fetchColleges = async (searchVal = "", pageVal = 1) => {
+    setLoading(true);
+    setError(null);
 
-        // ✅ Fixed: was /api/student/profile/status
-        const statusRes = await axios.get("/student/profile/status", {
-          headers: { Authorization: `Bearer ${token}` },
+    try {
+      const token = localStorage.getItem("token");
+
+      const params = new URLSearchParams();
+      if (searchVal) params.append("search", searchVal);
+      params.append("page", String(pageVal));
+      params.append("pageSize", "9");
+
+      const res = await axios.get(`/colleges?${params.toString()}`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+
+      const result: CollegesApiResponse = res.data;
+
+      setColleges(result.data);
+      setIsPersonalized(result.personalized);
+      setTotalPages(result.totalPages);
+
+      // Profile not complete → show modal
+      if (!result.personalized) {
+        const profileRes = await axios.get("/student/profile/status", {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
         });
-
-        const isComplete = statusRes.data?.data?.isProfileComplete;
-        setProfileComplete(isComplete);
-
-        if (!isComplete) {
-          setShowProfileModal(true);
-          setLoading(false);
-          return;
-        }
-
-        // ✅ Fixed: was /api/colleges/recommendations
-        const collegesRes = await axios.get("/colleges", {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-
-        setColleges(collegesRes.data?.data || []);
-        setError(null);
-      } catch (err: any) {
-        console.error("Error fetching colleges:", err);
-        setError(err.response?.data?.message || "Failed to load colleges");
-      } finally {
-        setLoading(false);
+        const isComplete = profileRes.data?.data?.isProfileComplete;
+        if (!isComplete) setShowProfileModal(true);
       }
-    };
-
-    checkProfileAndFetchColleges();
-  }, []);
-
-  const handleProfileSuccess = () => {
-    setProfileComplete(true);
-    setShowProfileModal(false);
-    window.location.reload();
+    } catch (err: any) {
+      console.error("Error fetching colleges:", err);
+      setError(err.response?.data?.message || "Failed to load colleges");
+    } finally {
+      setLoading(false);
+    }
   };
 
-  if (loading) {
-    return (
-      <main className="min-h-screen bg-linear-to-b from-blue-50 to-white">
-        <section className="bg-linear-to-r from-blue-600 to-blue-500 py-14 px-4">
-          <div className="max-w-4xl mx-auto text-center">
-            <h1 className="text-4xl sm:text-5xl font-extrabold text-white mb-4">
-              Find Your Perfect College
-            </h1>
-          </div>
-        </section>
-        <section className="max-w-6xl mx-auto px-4 py-12">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {Array.from({ length: 6 }).map((_, i) => (
-              <SkeletonCard key={i} />
-            ))}
-          </div>
-        </section>
-      </main>
-    );
-  }
+  useEffect(() => {
+    fetchColleges();
+  }, []);
+
+  const handleSearch = (val: string) => {
+    setSearch(val);
+    setPage(1);
+    fetchColleges(val, 1);
+  };
+
+  const handlePageChange = (newPage: number) => {
+    setPage(newPage);
+    fetchColleges(search, newPage);
+  };
+
+  const handleProfileSuccess = () => {
+    setShowProfileModal(false);
+    fetchColleges();
+  };
 
   return (
-    <main className="min-h-screen bg-linear-to-b from-blue-50 to-white">
+    <main className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
       <StudentProfileModal
         isOpen={showProfileModal}
         onClose={() => setShowProfileModal(false)}
@@ -328,40 +399,78 @@ function CollegesPageContent() {
       />
 
       {/* HERO */}
-      <section className="bg-linear-to-r from-blue-600 to-blue-500 py-14 px-4">
+      <section className="bg-gradient-to-r from-blue-600 to-blue-500 py-14 px-4">
         <div className="max-w-4xl mx-auto text-center">
-          <div className="inline-block bg-white/20 text-white text-sm font-semibold px-4 py-1.5 rounded-full mb-4 backdrop-blur-sm">
-            🎓 Personalized Recommendations
+          <div className="inline-block bg-white/20 text-white text-sm font-semibold px-4 py-1.5 rounded-full mb-4">
+            {isPersonalized ? "🎓 Personalized Recommendations" : "🏫 All Colleges"}
           </div>
           <h1 className="text-4xl sm:text-5xl font-extrabold text-white mb-4">
-            Your Perfect Colleges
+            {isPersonalized ? "Your Perfect Colleges" : "Explore Colleges"}
           </h1>
-          <p className="text-blue-100 text-lg max-w-xl mx-auto">
-            Based on your exam scores and preferences, we've curated the best
-            colleges for you.
+          <p className="text-blue-100 text-lg max-w-xl mx-auto mb-8">
+            {isPersonalized
+              ? "Based on your exam scores and preferences, we've curated the best colleges for you."
+              : "Complete your profile to get personalized recommendations."}
           </p>
+
+          {/* SEARCH */}
+          <div className="max-w-md mx-auto">
+            <input
+              type="text"
+              placeholder="Search colleges..."
+              value={search}
+              onChange={(e) => handleSearch(e.target.value)}
+              className="w-full px-5 py-3 rounded-xl text-gray-800 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300"
+            />
+          </div>
         </div>
       </section>
 
-      {/* COLLEGES GRID */}
+      {/* GRID */}
       <section className="max-w-6xl mx-auto px-4 py-12">
-        {error ? (
-          <ErrorState
-            message={error}
-            onRetry={() => window.location.reload()}
-          />
+        {loading ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {Array.from({ length: 6 }).map((_, i) => <SkeletonCard key={i} />)}
+          </div>
+        ) : error ? (
+          <ErrorState message={error} onRetry={() => fetchColleges(search, page)} />
         ) : colleges.length === 0 ? (
           <EmptyState />
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {colleges.map((college) => (
-              <CollegeCard
-                key={college.id}
-                college={college}
-                onClick={() => setSelectedCollege(college)}
-              />
-            ))}
-          </div>
+          <>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {colleges.map((college) => (
+                <CollegeCard
+                  key={college.college_id}
+                  college={college}
+                  onClick={() => setSelectedCollege(college)}
+                />
+              ))}
+            </div>
+
+            {/* PAGINATION */}
+            {totalPages > 1 && (
+              <div className="flex justify-center gap-2 mt-10">
+                <button
+                  onClick={() => handlePageChange(page - 1)}
+                  disabled={page === 1}
+                  className="px-4 py-2 text-sm font-semibold rounded-xl border-2 border-gray-200 text-gray-500 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  ← Prev
+                </button>
+                <span className="px-4 py-2 text-sm font-semibold text-gray-600">
+                  {page} / {totalPages}
+                </span>
+                <button
+                  onClick={() => handlePageChange(page + 1)}
+                  disabled={page === totalPages}
+                  className="px-4 py-2 text-sm font-semibold rounded-xl border-2 border-gray-200 text-gray-500 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  Next →
+                </button>
+              </div>
+            )}
+          </>
         )}
       </section>
 
