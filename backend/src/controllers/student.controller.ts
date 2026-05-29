@@ -30,7 +30,7 @@ const errorResponse = (res: Response, statusCode: number, message: string, error
   if (error) {
     console.error('Error details:', error);
   }
-  
+
   return res.status(statusCode).json({
     success: false,
     message,
@@ -73,40 +73,40 @@ const errorResponse = (res: Response, statusCode: number, message: string, error
 export const completeProfile = async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user?.user_id;
-    
+
     if (!userId) {
       return errorResponse(res, 401, 'Unauthorized');
     }
-    
+
     const { profile, exam_scores, course_preferences } = req.body;
-    
+
     // Validate structure
     if (!profile || !exam_scores || !course_preferences) {
       return errorResponse(res, 400, 'Profile, exam_scores, and course_preferences are required');
     }
-    
+
     if (!Array.isArray(exam_scores) || !Array.isArray(course_preferences)) {
       return errorResponse(res, 400, 'exam_scores and course_preferences must be arrays');
     }
-    
+
     // Call service
     const result = await studentService.completeStudentForm(userId, {
       profile,
       exam_scores,
       course_preferences
     });
-    
+
     return successResponse(res, 201, result, 'Student profile completed successfully');
-    
+
   } catch (error: any) {
     if (error.message.includes('not found')) {
       return errorResponse(res, 404, error.message, error);
     }
-    
+
     if (error.message.includes('Invalid') || error.message.includes('required')) {
       return errorResponse(res, 400, error.message, error);
     }
-    
+
     return errorResponse(res, 500, 'Failed to complete student profile', error);
   }
 };
@@ -119,20 +119,20 @@ export const completeProfile = async (req: AuthRequest, res: Response) => {
 export const getProfile = async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user?.user_id;
-    
+
     if (!userId) {
       return errorResponse(res, 401, 'Unauthorized');
     }
-    
+
     const profile = await studentService.getStudentProfile(userId);
-    
+
     return successResponse(res, 200, profile, 'Student profile retrieved successfully');
-    
+
   } catch (error: any) {
     if (error.message.includes('not found')) {
       return errorResponse(res, 404, error.message, error);
     }
-    
+
     return errorResponse(res, 500, 'Failed to retrieve student profile', error);
   }
 };
@@ -152,22 +152,22 @@ export const getProfile = async (req: AuthRequest, res: Response) => {
 export const updateProfile = async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user?.user_id;
-    
+
     if (!userId) {
       return errorResponse(res, 401, 'Unauthorized');
     }
-    
+
     const updateData = req.body;
-    
+
     const result = await studentService.updateStudentProfile(userId, updateData);
-    
+
     return successResponse(res, 200, result, 'Profile updated successfully');
-    
+
   } catch (error: any) {
     if (error.message.includes('Invalid')) {
       return errorResponse(res, 400, error.message, error);
     }
-    
+
     return errorResponse(res, 500, 'Failed to update profile', error);
   }
 };
@@ -180,15 +180,15 @@ export const updateProfile = async (req: AuthRequest, res: Response) => {
 export const getProfileStatus = async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user?.user_id;
-    
+
     if (!userId) {
       return errorResponse(res, 401, 'Unauthorized');
     }
-    
+
     const status = await studentService.getProfileCompletionStatus(userId);
-    
+
     return successResponse(res, 200, status, 'Profile status retrieved successfully');
-    
+
   } catch (error: any) {
     return errorResponse(res, 500, 'Failed to check profile status', error);
   }
@@ -206,9 +206,9 @@ export const getProfileStatus = async (req: AuthRequest, res: Response) => {
 export const getExams = async (req: AuthRequest, res: Response) => {
   try {
     const exams = await studentService.getAvailableExams();
-    
+
     return successResponse(res, 200, exams, 'Exams retrieved successfully');
-    
+
   } catch (error: any) {
     return errorResponse(res, 500, 'Failed to retrieve exams', error);
   }
@@ -221,14 +221,15 @@ export const getExams = async (req: AuthRequest, res: Response) => {
  */
 export const getCourses = async (req: AuthRequest, res: Response) => {
   try {
-    const streamId = req.query.streamId
-  ? Number(req.query.streamId)
-  : undefined;
+    // AFTER
+    const streamId = req.query.stream_id
+      ? Number(req.query.stream_id)
+      : undefined;
 
-const courses = await studentService.getAvailableCourses(streamId);
-    
+    const courses = await studentService.getAvailableCourses(streamId);
+
     return successResponse(res, 200, courses, 'Courses retrieved successfully');
-    
+
   } catch (error: any) {
     return errorResponse(res, 500, 'Failed to retrieve courses', error);
   }
@@ -242,9 +243,9 @@ const courses = await studentService.getAvailableCourses(streamId);
 export const getCategories = async (req: AuthRequest, res: Response) => {
   try {
     const categories = await studentService.getCategories();
-    
+
     return successResponse(res, 200, categories, 'Categories retrieved successfully');
-    
+
   } catch (error: any) {
     return errorResponse(res, 500, 'Failed to retrieve categories', error);
   }
