@@ -1,6 +1,6 @@
-// postcss.config.js
-module.exports = {
+// New ES Module syntax
+export default {
   plugins: {
-    '@tailwindcss/postcss': {},  // ← replace 'tailwindcss' with this
+    '@tailwindcss/postcss': {},
   },
 }
