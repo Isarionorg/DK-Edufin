@@ -1,0 +1,1 @@
+// new file to parse env variables all at one place and can be used anywhere easily.

@@ -1,0 +1,1 @@
+// admin panel routes to be added here

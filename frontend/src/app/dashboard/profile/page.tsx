@@ -1,6 +1,6 @@
 "use client";
 
-import { useUser } from "@/hooks/useUser";
+import { useUser } from "../../../hooks/useUser";
 import { useState } from "react";
 
 export default function ProfilePage() {
