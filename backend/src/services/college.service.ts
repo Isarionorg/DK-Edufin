@@ -77,12 +77,17 @@ export const getRecommendedColleges = async (
 
   // ── 4. GET COURSES VALID FOR STUDENT'S STREAM ───────
   // We'll use this to filter out courses that don't belong to student's stream
-  const streamCourses = await prisma.course_eligible_streams.findMany({
-    where: { stream_id: student.stream_id ?? undefined },
-    select: { course_id: true },
-  });
+  const streamCourseIds = new Set<number>();
 
-  const streamCourseIds = new Set(streamCourses.map(sc => sc.course_id));
+  if (student.preferred_stream != null) {
+    const streamCourses = await prisma.$queryRaw<
+      { course_id: number }[]
+    >`SELECT course_id FROM course_eligible_streams WHERE stream_id = ${student.preferred_stream}`;
+
+    for (const sc of streamCourses) {
+      streamCourseIds.add(sc.course_id);
+    }
+  }
 
   // ── 5. FIND ELIGIBLE CUTOFFS ─────────────────────────
   // For each exam score the student has, find cutoff rows they meet

@@ -1,8 +1,6 @@
 import { Router } from 'express';
 import authRoutes from './auth.routes';
 import studentRoutes from './student.routes';
-import paymentRoutes from './payment.routes';
-import uploadRoutes from './upload.routes';
 import healthRoutes from './health.routes';
 import collegeRoutes from './college.routes';
 
@@ -16,12 +14,6 @@ router.use('/auth', authRoutes);
 
 // Student routes (was '/users', changed to '/student' for clarity)
 router.use('/student', studentRoutes);
-
-// Payment routes
-router.use('/payment', paymentRoutes);
-
-// Upload routes
-router.use('/upload', uploadRoutes);
 
 // College routes
 router.use('/colleges', collegeRoutes);

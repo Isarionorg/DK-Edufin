@@ -61,10 +61,10 @@ export default function ContactPage() {
   ];
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50">
+    <main className="min-h-screen bg-linear-to-br from-blue-50 via-white to-indigo-50">
 
       {/* ── HERO BANNER ── */}
-      <section className="bg-gradient-to-r from-blue-600 to-blue-500 py-16 px-4">
+      <section className="bg-linear-to-r from-blue-600 to-blue-500 py-16 px-4">
         <div className="max-w-4xl mx-auto text-center">
           <div className="inline-block bg-white/20 text-white text-sm font-semibold px-4 py-1.5 rounded-full mb-5 backdrop-blur-sm">
             📬 Contact Us
@@ -87,7 +87,7 @@ export default function ContactPage() {
               key={item.title}
               className="bg-white rounded-2xl shadow-lg p-6 flex items-start gap-4 border border-gray-100 hover:shadow-xl transition-shadow duration-300"
             >
-              <div className={`${item.color} w-12 h-12 rounded-xl flex items-center justify-center text-2xl flex-shrink-0 shadow-md`}>
+              <div className={`${item.color} w-12 h-12 rounded-xl flex items-center justify-center text-2xl shrink-0 shadow-md`}>
                 {item.icon}
               </div>
               <div>
@@ -127,7 +127,7 @@ export default function ContactPage() {
                   "Career path planning",
                 ].map((item) => (
                   <li key={item} className="flex items-center gap-2.5 text-sm text-gray-600">
-                    <span className="w-5 h-5 bg-blue-100 rounded-full flex items-center justify-center text-blue-500 text-xs font-bold flex-shrink-0">
+                    <span className="w-5 h-5 bg-blue-100 rounded-full flex items-center justify-center text-blue-500 text-xs font-bold shrink-0">
                       ✓
                     </span>
                     {item}
@@ -138,7 +138,7 @@ export default function ContactPage() {
 
             {/* WhatsApp */}
             <div
-              className="bg-gradient-to-r from-green-500 to-green-400 rounded-2xl p-6 shadow-md cursor-pointer hover:shadow-lg transition-shadow duration-200"
+              className="bg-linear-to-r from-green-500 to-green-400 rounded-2xl p-6 shadow-md cursor-pointer hover:shadow-lg transition-shadow duration-200"
             >
               <div className="flex items-center gap-4">
                 <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center text-2xl">

@@ -151,7 +151,7 @@ function CollegeModal({
         onClick={(e) => e.stopPropagation()}
       >
         {/* HEADER */}
-        <div className="bg-gradient-to-r from-blue-500 to-blue-600 p-7 flex items-center gap-5">
+        <div className="bg-linear-to-r from-blue-500 to-blue-600 p-7 flex items-center gap-5">
           <div className="w-16 h-16 bg-white/20 rounded-2xl flex items-center justify-center text-4xl">
             🏫
           </div>
@@ -391,7 +391,7 @@ function CollegesPageContent() {
   };
 
   return (
-    <main className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
+    <main className="min-h-screen bg-linear-to-b from-blue-50 to-white">
       <StudentProfileModal
         isOpen={showProfileModal}
         onClose={() => setShowProfileModal(false)}
@@ -399,7 +399,7 @@ function CollegesPageContent() {
       />
 
       {/* HERO */}
-      <section className="bg-gradient-to-r from-blue-600 to-blue-500 py-14 px-4">
+      <section className="bg-linear-to-r from-blue-600 to-blue-500 py-14 px-4">
         <div className="max-w-4xl mx-auto text-center">
           <div className="inline-block bg-white/20 text-white text-sm font-semibold px-4 py-1.5 rounded-full mb-4">
             {isPersonalized ? "🎓 Personalized Recommendations" : "🏫 All Colleges"}
