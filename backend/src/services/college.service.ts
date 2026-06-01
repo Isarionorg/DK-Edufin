@@ -79,10 +79,11 @@ export const getRecommendedColleges = async (
   // We'll use this to filter out courses that don't belong to student's stream
   const streamCourseIds = new Set<number>();
 
-  if (student.preferred_stream != null) {
-    const streamCourses = await prisma.$queryRaw<
-      { course_id: number }[]
-    >`SELECT course_id FROM course_eligible_streams WHERE stream_id = ${student.preferred_stream}`;
+  if (student.stream_id != null) {
+    const streamCourses = await prisma.course_eligible_streams.findMany({
+  where: { stream_id: student.stream_id },
+  select: { course_id: true },
+});
 
     for (const sc of streamCourses) {
       streamCourseIds.add(sc.course_id);
@@ -211,12 +212,14 @@ export const getRecommendedColleges = async (
   const paginated = results.slice((page - 1) * pageSize, page * pageSize);
 
   return {
-    data: paginated,
-    total,
-    page,
-    pageSize,
-    totalPages,
-  };
+  success: true,
+  personalized: true,
+  data: paginated,
+  total,
+  page,
+  pageSize,
+  totalPages,
+};
 };
 
 // ============================================
@@ -271,6 +274,7 @@ export const getAllColleges = async (filters: CollegeFilters = {}) => {
   }));
 
   return { data, total, page, pageSize, totalPages: Math.ceil(total / pageSize) };
+  // return { success: true, personalized: true, data: paginated, total, page, pageSize, totalPages };
 };
 
 // ============================================
