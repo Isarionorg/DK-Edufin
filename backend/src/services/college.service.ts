@@ -80,7 +80,7 @@ export const getRecommendedColleges = async (
   const streamCourseIds = new Set<number>();
 
   if (student.stream_id != null) {
-    const streamCourses = await prisma.course_eligible_streams.findMany({
+const streamCourses = await prisma.course_eligible_streams.findMany({
   where: { stream_id: student.stream_id },
   select: { course_id: true },
 });
@@ -212,14 +212,12 @@ export const getRecommendedColleges = async (
   const paginated = results.slice((page - 1) * pageSize, page * pageSize);
 
   return {
-  success: true,
-  personalized: true,
-  data: paginated,
-  total,
-  page,
-  pageSize,
-  totalPages,
-};
+    data: paginated,
+    total,
+    page,
+    pageSize,
+    totalPages,
+  };
 };
 
 // ============================================
