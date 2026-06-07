@@ -5,6 +5,8 @@ import morgan from 'morgan';
 import cookieParser from 'cookie-parser';
 import compression from 'compression';
 import * as Sentry from '@sentry/node';
+// src/app.ts (or wherever you mount routes)
+import adminRoutes from "./routes/admin.routes";
 
 import { errorHandler } from './middlewares/error.middleware';
 import { corsOptions } from './middlewares/cors.middleware';
@@ -41,6 +43,9 @@ app.get('/health', (_req: Request, res: Response) => {
   });
 });
 
+// Admin routes
+app.use('/api/v1/admin', adminRoutes);
+
 // ✅ Routes registered ONCE, AFTER middleware
 app.use('/api/v1', routes);
 
@@ -57,5 +62,6 @@ app.use(Sentry.Handlers.errorHandler());
 
 // Global error handler - must be last
 app.use(errorHandler);
+
 
 export default app;

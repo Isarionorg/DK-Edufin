@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import AdminHeader from "@/components/admin/AdminHeader";
-import { Course, DegreeType, Stream } from "@/types/admin";
-import { Plus, Trash2, CheckCircle2, X } from "lucide-react";
+import { DegreeType, Stream } from "@/types/admin";
+import { Plus, CheckCircle2, X, Loader2, AlertCircle } from "lucide-react";
+import { fetchCourses, createCourse as apiCreateCourse, ApiCourse } from "@/lib/adminapi";
 
 const DEGREE_TYPES: DegreeType[] = ["UG", "PG", "Diploma"];
 const STREAMS: Stream[] = ["PCM", "PCB", "COMMERCE", "HUMANITIES", "ANY"];
@@ -23,10 +24,32 @@ const emptyForm = {
 };
 
 export default function CoursesPage() {
-  const [courses, setCourses] = useState<Course[]>([]);
+  const [courses, setCourses] = useState<ApiCourse[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
   const [form, setForm] = useState(emptyForm);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [apiError, setApiError] = useState<string | null>(null);
   const [submitted, setSubmitted] = useState(false);
+
+  useEffect(() => {
+  fetchCourses()
+    .then((data) => {
+      console.log("========== FETCHED COURSES ==========");
+      console.log(data);
+      console.log("====================================");
+
+      setCourses(data);
+    })
+    .catch((e) => setApiError(e.message))
+    .finally(() => setLoading(false));
+}, []);
+
+useEffect(() => {
+  console.log("========== COURSES STATE ==========");
+  console.log(courses);
+  console.log("===================================");
+}, [courses]);
 
   const toggleStream = (s: Stream) => {
     setForm((prev) => ({
@@ -44,21 +67,30 @@ export default function CoursesPage() {
     return e;
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const errs = validate();
     setErrors(errs);
     if (Object.keys(errs).length > 0) return;
 
-    const newCourse: Course = {
-      id: crypto.randomUUID(),
-      ...form,
-      createdAt: new Date().toISOString(),
-    };
-    setCourses((prev) => [newCourse, ...prev]);
-    setForm(emptyForm);
-    setSubmitted(true);
-    setTimeout(() => setSubmitted(false), 3000);
+    setSubmitting(true);
+    setApiError(null);
+
+    try {
+      const newCourse = await apiCreateCourse({
+        name: form.name,
+        degreeType: form.degreeType,
+        eligibleStreamCodes: form.eligibleStreams,
+      });
+      setCourses((prev) => [newCourse, ...prev]);
+      setForm(emptyForm);
+      setSubmitted(true);
+      setTimeout(() => setSubmitted(false), 3000);
+    } catch (err: any) {
+      setApiError(err.message);
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -75,6 +107,12 @@ export default function CoursesPage() {
           {submitted && (
             <div className="mb-4 flex items-center gap-2 bg-green-50 text-green-700 border border-green-200 rounded-xl px-4 py-3 text-sm font-medium">
               <CheckCircle2 size={16} /> Course added successfully!
+            </div>
+          )}
+
+          {apiError && (
+            <div className="mb-4 flex items-center gap-2 bg-red-50 text-red-600 border border-red-200 rounded-xl px-4 py-3 text-sm font-medium">
+              <AlertCircle size={16} /> {apiError}
             </div>
           )}
 
@@ -152,17 +190,23 @@ export default function CoursesPage() {
 
             <button
               type="submit"
-              className="px-6 py-2.5 bg-[#2563EB] hover:bg-[#1D4ED8] text-white text-sm font-semibold rounded-xl transition-colors shadow-sm"
+              disabled={submitting}
+              className="flex items-center gap-2 px-6 py-2.5 bg-[#2563EB] hover:bg-[#1D4ED8] disabled:opacity-60 disabled:cursor-not-allowed text-white text-sm font-semibold rounded-xl transition-colors shadow-sm"
             >
+              {submitting && <Loader2 size={15} className="animate-spin" />}
               Add Course
             </button>
           </form>
         </div>
 
-        {courses.length > 0 && (
+        {loading ? (
+          <div className="flex items-center justify-center py-12 text-gray-400 gap-2">
+            <Loader2 size={18} className="animate-spin" /> Loading courses…
+          </div>
+        ) : courses.length > 0 ? (
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
             <div className="px-6 py-4 border-b border-gray-100">
-              <h2 className="text-base font-semibold text-gray-800">Added Courses ({courses.length})</h2>
+              <h2 className="text-base font-semibold text-gray-800">Courses ({courses.length})</h2>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
@@ -171,43 +215,40 @@ export default function CoursesPage() {
                     <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Course Name</th>
                     <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Degree</th>
                     <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Eligible Streams</th>
-                    <th className="text-right px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Action</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-50">
-                  {courses.map((c) => (
-                    <tr key={c.id} className="hover:bg-gray-50 transition-colors">
-                      <td className="px-6 py-3.5 font-medium text-gray-800">{c.name}</td>
+                  {courses.map((c) => {
+  console.log("Rendering course:", c);
+
+  return (
+                    <tr key={c.course_id} className="hover:bg-gray-50 transition-colors">
+                      <td className="px-6 py-3.5 font-medium text-gray-800">{c.course_name}</td>
                       <td className="px-6 py-3.5">
                         <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                          c.degreeType === "UG" ? "bg-blue-50 text-blue-700" :
-                          c.degreeType === "PG" ? "bg-purple-50 text-purple-700" : "bg-orange-50 text-orange-700"
+                          c.degree_type === "UG" ? "bg-blue-50 text-blue-700" :
+                          c.degree_type === "PG" ? "bg-purple-50 text-purple-700" : "bg-orange-50 text-orange-700"
                         }`}>
-                          {c.degreeType}
+                          {c.degree_type}
                         </span>
                       </td>
                       <td className="px-6 py-3.5">
                         <div className="flex flex-wrap gap-1">
-                          {c.eligibleStreams.map((s) => (
-                            <span key={s} className="px-2 py-0.5 bg-gray-100 text-gray-600 rounded text-xs">{s}</span>
+                          {(c.eligible_streams ?? []).map((s) => (
+                            <span key={s.stream_id} className="px-2 py-0.5 bg-gray-100 text-gray-600 rounded text-xs">
+                              {s.stream_code}
+                            </span>
                           ))}
                         </div>
                       </td>
-                      <td className="px-6 py-3.5 text-right">
-                        <button
-                          onClick={() => setCourses((prev) => prev.filter((x) => x.id !== c.id))}
-                          className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
-                        >
-                          <Trash2 size={15} />
-                        </button>
-                      </td>
                     </tr>
-                  ))}
+  );
+})}
                 </tbody>
               </table>
             </div>
           </div>
-        )}
+        ) : null}
       </div>
     </div>
   );
