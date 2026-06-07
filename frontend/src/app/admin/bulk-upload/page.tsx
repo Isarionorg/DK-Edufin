@@ -4,33 +4,14 @@ import { useState, useRef, useCallback } from "react";
 import AdminHeader from "@/components/admin/AdminHeader";
 import { ParsedRow } from "@/types/admin";
 import {
-  Upload,
-  FileSpreadsheet,
-  Download,
-  CheckCircle2,
-  XCircle,
-  AlertTriangle,
-  X,
-  ChevronDown,
-  ChevronUp,
-  Info,
+  Upload, FileSpreadsheet, Download, CheckCircle2, XCircle,
+  AlertTriangle, X, ChevronDown, ChevronUp, Info, Loader2,
 } from "lucide-react";
-
-// ─── Constants ────────────────────────────────────────────────────────────────
+import { bulkUpload as apiBulkUpload, BulkUploadResult } from "@/lib/adminapi";
 
 const REQUIRED_COLUMNS = [
-  "collegeName",
-  "collegeType",
-  "city",
-  "state",
-  "isPartner",
-  "courseName",
-  "degreeType",
-  "eligibleStreams",
-  "exam",
-  "category",
-  "academicYear",
-  "roundNumber",
+  "collegeName","collegeType","city","state","isPartner",
+  "courseName","degreeType","eligibleStreams","exam","category","academicYear","roundNumber",
 ];
 
 const VALID_COLLEGE_TYPES = ["Government", "Private", "Deemed"];
@@ -39,50 +20,27 @@ const VALID_STREAMS = ["PCM", "PCB", "COMMERCE", "HUMANITIES", "ANY"];
 const VALID_EXAMS = ["CUET", "JEE_MAIN", "JEE_ADVANCED", "MHT_CET", "KCET", "WBJEE", "Other"];
 const VALID_CATEGORIES = ["UR/GENERAL", "OBC", "SC", "ST", "EWS", "PwBD"];
 
-// ─── CSV Template ─────────────────────────────────────────────────────────────
-
 const TEMPLATE_HEADERS = [
-  "collegeName",
-  "collegeType",
-  "city",
-  "state",
-  "website",
-  "isPartner",
-  "courseName",
-  "degreeType",
-  "eligibleStreams",
-  "exam",
-  "category",
-  "cutoffScore",
-  "cutoffRank",
-  "academicYear",
-  "roundNumber",
+  "collegeName","collegeType","city","state","website","isPartner",
+  "courseName","degreeType","eligibleStreams","exam","category",
+  "cutoffScore","cutoffRank","academicYear","roundNumber",
 ];
-
 const TEMPLATE_SAMPLE = [
-  "Delhi University",
-  "Government",
-  "New Delhi",
-  "Delhi",
-  "https://du.ac.in",
-  "yes",
-  "B.Sc (Hons.) Mathematics",
-  "UG",
-  "PCM|PCB",
-  "CUET",
-  "UR/GENERAL",
-  "680",
-  "",
-  "2025",
-  "1",
+  "Delhi University","Government","New Delhi","Delhi","https://du.ac.in","yes",
+  "B.Sc (Hons.) Mathematics","UG","PCM|PCB","CUET","UR/GENERAL","680","","2025","1",
 ];
-
-// ─── Validation ───────────────────────────────────────────────────────────────
 
 function validateRow(row: Record<string, string>, index: number): ParsedRow {
   const errors: string[] = [];
+  const get = (key: string) => {
+  const value = row[key];
 
-  const get = (key: string) => (row[key] || "").trim();
+  console.log("COLUMN:", key);
+  console.log("VALUE:", value);
+  console.log("TYPE:", typeof value);
+
+  return String(value ?? "").trim();
+};
 
   if (!get("collegeName")) errors.push("collegeName is required");
   if (!VALID_COLLEGE_TYPES.includes(get("collegeType")))
@@ -98,7 +56,7 @@ function validateRow(row: Record<string, string>, index: number): ParsedRow {
   const streams = get("eligibleStreams").split("|").map((s) => s.trim());
   const invalidStreams = streams.filter((s) => !VALID_STREAMS.includes(s));
   if (invalidStreams.length > 0)
-    errors.push(`Invalid streams: ${invalidStreams.join(", ")}. Use: ${VALID_STREAMS.join("|")}`);
+    errors.push(`Invalid streams: ${invalidStreams.join(", ")}`);
 
   if (!VALID_EXAMS.includes(get("exam")))
     errors.push(`exam must be one of: ${VALID_EXAMS.join(", ")}`);
@@ -117,58 +75,36 @@ function validateRow(row: Record<string, string>, index: number): ParsedRow {
   if (rank && isNaN(Number(rank))) errors.push("cutoffRank must be a number");
 
   return {
-    collegeName: get("collegeName"),
-    collegeType: get("collegeType"),
-    city: get("city"),
-    state: get("state"),
-    website: get("website"),
-    isPartner: get("isPartner"),
-    courseName: get("courseName"),
-    degreeType: get("degreeType"),
-    eligibleStreams: get("eligibleStreams"),
-    exam: get("exam"),
-    category: get("category"),
-    cutoffScore: score || undefined,
-    cutoffRank: rank || undefined,
-    academicYear: get("academicYear"),
-    roundNumber: get("roundNumber"),
-    rowIndex: index,
-    errors,
-    isValid: errors.length === 0,
+    collegeName: get("collegeName"), collegeType: get("collegeType"),
+    city: get("city"), state: get("state"), website: get("website"),
+    isPartner: get("isPartner"), courseName: get("courseName"),
+    degreeType: get("degreeType"), eligibleStreams: get("eligibleStreams"),
+    exam: get("exam"), category: get("category"),
+    cutoffScore: score || undefined, cutoffRank: rank || undefined,
+    academicYear: get("academicYear"), roundNumber: get("roundNumber"),
+    rowIndex: index, errors, isValid: errors.length === 0,
   };
 }
-
-// ─── CSV Parser ───────────────────────────────────────────────────────────────
 
 function parseCSV(text: string): Record<string, string>[] {
   const lines = text.trim().split(/\r?\n/);
   if (lines.length < 2) return [];
   const headers = lines[0].split(",").map((h) => h.trim().replace(/^"|"$/g, ""));
   return lines.slice(1).map((line) => {
-    // Handle quoted commas
     const values: string[] = [];
     let current = "";
     let inQuotes = false;
     for (const char of line) {
-      if (char === '"') {
-        inQuotes = !inQuotes;
-      } else if (char === "," && !inQuotes) {
-        values.push(current.trim());
-        current = "";
-      } else {
-        current += char;
-      }
+      if (char === '"') { inQuotes = !inQuotes; }
+      else if (char === "," && !inQuotes) { values.push(current.trim()); current = ""; }
+      else { current += char; }
     }
     values.push(current.trim());
     const obj: Record<string, string> = {};
-    headers.forEach((h, i) => {
-      obj[h] = values[i] ?? "";
-    });
+    headers.forEach((h, i) => { obj[h] = values[i] ?? ""; });
     return obj;
   });
 }
-
-// ─── Download Template ────────────────────────────────────────────────────────
 
 function downloadTemplate() {
   const rows = [TEMPLATE_HEADERS.join(","), TEMPLATE_SAMPLE.join(",")];
@@ -181,14 +117,14 @@ function downloadTemplate() {
   URL.revokeObjectURL(url);
 }
 
-// ─── Component ────────────────────────────────────────────────────────────────
-
 export default function BulkUploadPage() {
   const [parsedRows, setParsedRows] = useState<ParsedRow[]>([]);
   const [fileName, setFileName] = useState("");
   const [dragOver, setDragOver] = useState(false);
-  const [uploading, setUploading] = useState(false);
-  const [committed, setCommitted] = useState(false);
+  const [parsing, setParsing] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const [result, setResult] = useState<BulkUploadResult | null>(null);
+  const [importError, setImportError] = useState<string | null>(null);
   const [expandedErrors, setExpandedErrors] = useState<Set<number>>(new Set());
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -197,47 +133,40 @@ export default function BulkUploadPage() {
 
   const processFile = useCallback((file: File) => {
     if (!file) return;
-
     const isCSV = file.name.endsWith(".csv");
     const isExcel = file.name.endsWith(".xlsx") || file.name.endsWith(".xls");
-
-    if (!isCSV && !isExcel) {
-      alert("Only .csv or .xlsx/.xls files are supported.");
-      return;
-    }
+    if (!isCSV && !isExcel) { alert("Only .csv or .xlsx/.xls files are supported."); return; }
 
     setFileName(file.name);
-    setUploading(true);
+    setParsing(true);
     setParsedRows([]);
-    setCommitted(false);
+    setResult(null);
+    setImportError(null);
 
     if (isCSV) {
       const reader = new FileReader();
       reader.onload = (e) => {
         const text = e.target?.result as string;
         const rawRows = parseCSV(text);
-        const rows = rawRows.map((r, i) => validateRow(r, i + 2)); // +2 for header + 1-index
-        setParsedRows(rows);
-        setUploading(false);
+        setParsedRows(rawRows.map((r, i) => validateRow(r, i + 2)));
+        setParsing(false);
       };
       reader.readAsText(file);
     } else {
-      // For Excel: dynamically import SheetJS (xlsx) — works in Next.js
       import("xlsx").then((XLSX) => {
         const reader = new FileReader();
         reader.onload = (e) => {
           const data = new Uint8Array(e.target?.result as ArrayBuffer);
-          const workbook = XLSX.read(data, { type: "array" });
-          const sheet = workbook.Sheets[workbook.SheetNames[0]];
+          const wb = XLSX.read(data, { type: "array" });
+          const sheet = wb.Sheets[wb.SheetNames[0]];
           const json: Record<string, string>[] = XLSX.utils.sheet_to_json(sheet, { defval: "" });
-          const rows = json.map((r, i) => validateRow(r, i + 2));
-          setParsedRows(rows);
-          setUploading(false);
+          setParsedRows(json.map((r, i) => validateRow(r, i + 2)));
+          setParsing(false);
         };
         reader.readAsArrayBuffer(file);
       }).catch(() => {
-        alert("Could not load Excel parser. Please use a CSV file instead.");
-        setUploading(false);
+        alert("Could not load Excel parser. Please use a CSV file.");
+        setParsing(false);
       });
     }
   }, []);
@@ -262,15 +191,25 @@ export default function BulkUploadPage() {
     });
   };
 
-  const handleCommit = () => {
-    // TODO: Send validRows to API
-    setCommitted(true);
+  const handleCommit = async () => {
+    setImporting(true);
+    setImportError(null);
+    try {
+      const res = await apiBulkUpload(validRows);
+      setResult(res);
+      setParsedRows([]);
+    } catch (err: any) {
+      setImportError(err.message);
+    } finally {
+      setImporting(false);
+    }
   };
 
   const handleReset = () => {
     setParsedRows([]);
     setFileName("");
-    setCommitted(false);
+    setResult(null);
+    setImportError(null);
     if (fileRef.current) fileRef.current.value = "";
   };
 
@@ -278,20 +217,21 @@ export default function BulkUploadPage() {
     <div className="flex flex-col flex-1">
       <AdminHeader
         title="Bulk Upload"
-        subtitle="Import college cutoff data from a CSV or Excel file provided by colleges"
+        subtitle="Import college cutoff data from a CSV or Excel file"
       />
 
       <div className="flex-1 p-8 space-y-6">
-
         {/* Info Banner */}
         <div className="bg-[#EFF6FF] border border-[#BFDBFE] rounded-2xl p-4 flex items-start gap-3">
           <Info size={16} className="text-[#2563EB] mt-0.5 flex-shrink-0" />
           <div className="text-sm text-[#1D4ED8]">
             <p className="font-semibold mb-1">How it works</p>
             <p className="text-[#3B82F6]">
-              Download the template, share it with the college. They fill it in and send back the file.
-              Upload it here — the parser validates each row and shows errors before you commit to the database.
-              Use <code className="bg-white/60 px-1 rounded text-xs">|</code> to separate multiple streams (e.g. <code className="bg-white/60 px-1 rounded text-xs">PCM|PCB</code>).
+              Download the template, fill it in (or share with a college), then upload here.
+              The parser validates every row before you commit. Use{" "}
+              <code className="bg-white/60 px-1 rounded text-xs">|</code> to separate multiple streams (e.g.{" "}
+              <code className="bg-white/60 px-1 rounded text-xs">PCM|PCB</code>).
+              Duplicate rows are safely upserted — no data is lost.
             </p>
           </div>
         </div>
@@ -304,21 +244,18 @@ export default function BulkUploadPage() {
             </div>
             <div>
               <p className="text-sm font-semibold text-gray-800">CSV Template</p>
-              <p className="text-xs text-gray-400 mt-0.5">
-                dk_edufin_bulk_upload_template.csv — share this with partner colleges
-              </p>
+              <p className="text-xs text-gray-400 mt-0.5">dk_edufin_bulk_upload_template.csv</p>
             </div>
           </div>
           <button
             onClick={downloadTemplate}
             className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-semibold rounded-xl transition-colors shadow-sm flex-shrink-0"
           >
-            <Download size={15} />
-            Download Template
+            <Download size={15} /> Download Template
           </button>
         </div>
 
-        {/* Field Reference */}
+        {/* Column Reference */}
         <details className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
           <summary className="px-6 py-4 text-sm font-semibold text-gray-700 cursor-pointer flex items-center gap-2 select-none list-none">
             <ChevronDown size={15} className="text-gray-400" />
@@ -329,29 +266,27 @@ export default function BulkUploadPage() {
               <thead>
                 <tr className="bg-gray-50">
                   {["Column", "Required", "Valid Values / Format"].map((h) => (
-                    <th key={h} className="text-left px-3 py-2 font-semibold text-gray-500 uppercase tracking-wide">
-                      {h}
-                    </th>
+                    <th key={h} className="text-left px-3 py-2 font-semibold text-gray-500 uppercase tracking-wide">{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50 text-gray-700">
                 {[
-                  ["collegeName", "✓", "Any text"],
-                  ["collegeType", "✓", "Government | Private | Deemed"],
-                  ["city", "✓", "Any text"],
-                  ["state", "✓", "Any text"],
-                  ["website", "", "URL (optional)"],
-                  ["isPartner", "✓", "yes / no"],
-                  ["courseName", "✓", "Any text"],
-                  ["degreeType", "✓", "UG | PG | Diploma"],
-                  ["eligibleStreams", "✓", "PCM | PCB | COMMERCE | HUMANITIES | ANY (pipe-separated for multiple)"],
-                  ["exam", "✓", "CUET | JEE_MAIN | JEE_ADVANCED | MHT_CET | KCET | WBJEE | Other"],
-                  ["category", "✓", "UR/GENERAL | OBC | SC | ST | EWS | PwBD"],
-                  ["cutoffScore", "", "Number (used for CUET)"],
-                  ["cutoffRank", "", "Number (used for JEE/CETs)"],
-                  ["academicYear", "✓", "4-digit year e.g. 2025"],
-                  ["roundNumber", "✓", "1, 2, 3…"],
+                  ["collegeName","✓","Any text"],
+                  ["collegeType","✓","Government | Private | Deemed"],
+                  ["city","✓","Any text"],
+                  ["state","✓","Any text"],
+                  ["website","","URL (optional)"],
+                  ["isPartner","✓","yes / no"],
+                  ["courseName","✓","Any text"],
+                  ["degreeType","✓","UG | PG | Diploma"],
+                  ["eligibleStreams","✓","PCM | PCB | COMMERCE | HUMANITIES | ANY (pipe-separated)"],
+                  ["exam","✓","CUET | JEE_MAIN | JEE_ADVANCED | MHT_CET | KCET | WBJEE | Other"],
+                  ["category","✓","UR/GENERAL | OBC | SC | ST | EWS | PwBD"],
+                  ["cutoffScore","","Number (for CUET)"],
+                  ["cutoffRank","","Number (for JEE/CETs)"],
+                  ["academicYear","✓","4-digit year e.g. 2025"],
+                  ["roundNumber","✓","1, 2, 3…"],
                 ].map(([col, req, values]) => (
                   <tr key={col} className="hover:bg-gray-50">
                     <td className="px-3 py-2 font-mono text-[#2563EB]">{col}</td>
@@ -365,41 +300,33 @@ export default function BulkUploadPage() {
         </details>
 
         {/* Upload Zone */}
-        {!parsedRows.length && (
+        {!parsedRows.length && !result && (
           <div
             onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
             onDragLeave={() => setDragOver(false)}
             onDrop={handleDrop}
             onClick={() => fileRef.current?.click()}
             className={`bg-white rounded-2xl border-2 border-dashed p-12 flex flex-col items-center justify-center gap-3 cursor-pointer transition-all ${
-              dragOver
-                ? "border-[#2563EB] bg-[#EFF6FF]"
-                : "border-gray-200 hover:border-[#2563EB]/50 hover:bg-gray-50"
+              dragOver ? "border-[#2563EB] bg-[#EFF6FF]" : "border-gray-200 hover:border-[#2563EB]/50 hover:bg-gray-50"
             }`}
           >
             <div className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-colors ${
               dragOver ? "bg-[#2563EB] text-white" : "bg-gray-100 text-gray-400"
             }`}>
-              <Upload size={24} />
+              {parsing ? <Loader2 size={24} className="animate-spin" /> : <Upload size={24} />}
             </div>
             <div className="text-center">
               <p className="text-sm font-semibold text-gray-700">
-                {uploading ? "Parsing file…" : "Drop your file here, or click to browse"}
+                {parsing ? "Parsing file…" : "Drop your file here, or click to browse"}
               </p>
               <p className="text-xs text-gray-400 mt-1">Supports .csv and .xlsx / .xls</p>
             </div>
-            <input
-              ref={fileRef}
-              type="file"
-              accept=".csv,.xlsx,.xls"
-              className="hidden"
-              onChange={handleFileChange}
-            />
+            <input ref={fileRef} type="file" accept=".csv,.xlsx,.xls" className="hidden" onChange={handleFileChange} />
           </div>
         )}
 
         {/* Parse Results */}
-        {parsedRows.length > 0 && !committed && (
+        {parsedRows.length > 0 && !result && (
           <div className="space-y-4">
             {/* Summary Bar */}
             <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 flex flex-wrap items-center gap-4">
@@ -409,20 +336,14 @@ export default function BulkUploadPage() {
               </div>
               <div className="flex items-center gap-3">
                 <div className="flex items-center gap-1.5 px-3 py-1.5 bg-green-50 text-green-700 rounded-xl text-sm font-medium">
-                  <CheckCircle2 size={14} />
-                  {validRows.length} valid
+                  <CheckCircle2 size={14} /> {validRows.length} valid
                 </div>
                 {invalidRows.length > 0 && (
                   <div className="flex items-center gap-1.5 px-3 py-1.5 bg-red-50 text-red-600 rounded-xl text-sm font-medium">
-                    <XCircle size={14} />
-                    {invalidRows.length} errors
+                    <XCircle size={14} /> {invalidRows.length} errors
                   </div>
                 )}
-                <button
-                  onClick={handleReset}
-                  className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-xl transition-all"
-                  title="Reset"
-                >
+                <button onClick={handleReset} className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-xl transition-all" title="Reset">
                   <X size={15} />
                 </button>
               </div>
@@ -440,29 +361,21 @@ export default function BulkUploadPage() {
                 <div className="divide-y divide-gray-50">
                   {invalidRows.map((row) => (
                     <div key={row.rowIndex} className="px-6 py-3">
-                      <button
-                        onClick={() => toggleErrorExpand(row.rowIndex)}
-                        className="w-full flex items-center justify-between text-left"
-                      >
+                      <button onClick={() => toggleErrorExpand(row.rowIndex)} className="w-full flex items-center justify-between text-left">
                         <span className="text-sm font-medium text-gray-700">
                           Row {row.rowIndex}: {row.collegeName || "(no college name)"}
                           {row.courseName ? ` — ${row.courseName}` : ""}
                         </span>
                         <div className="flex items-center gap-2">
                           <span className="text-xs text-red-500 font-medium">{row.errors.length} error{row.errors.length > 1 ? "s" : ""}</span>
-                          {expandedErrors.has(row.rowIndex) ? (
-                            <ChevronUp size={14} className="text-gray-400" />
-                          ) : (
-                            <ChevronDown size={14} className="text-gray-400" />
-                          )}
+                          {expandedErrors.has(row.rowIndex) ? <ChevronUp size={14} className="text-gray-400" /> : <ChevronDown size={14} className="text-gray-400" />}
                         </div>
                       </button>
                       {expandedErrors.has(row.rowIndex) && (
                         <ul className="mt-2 space-y-1">
                           {row.errors.map((err, i) => (
                             <li key={i} className="flex items-start gap-2 text-xs text-red-600">
-                              <XCircle size={12} className="mt-0.5 flex-shrink-0" />
-                              {err}
+                              <XCircle size={12} className="mt-0.5 flex-shrink-0" /> {err}
                             </li>
                           ))}
                         </ul>
@@ -478,21 +391,15 @@ export default function BulkUploadPage() {
               <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
                 <div className="px-6 py-4 border-b border-gray-100 flex items-center gap-2">
                   <CheckCircle2 size={16} className="text-green-500" />
-                  <h3 className="text-sm font-semibold text-gray-800">
-                    {validRows.length} rows ready to import
-                  </h3>
+                  <h3 className="text-sm font-semibold text-gray-800">{validRows.length} rows ready to import</h3>
                 </div>
                 <div className="overflow-x-auto">
                   <table className="w-full text-xs">
                     <thead>
                       <tr className="bg-gray-50">
-                        {["#", "College", "Type", "Course", "Degree", "Streams", "Exam", "Category", "Score", "Rank", "Year", "Rnd"].map(
-                          (h) => (
-                            <th key={h} className="text-left px-3 py-2.5 font-semibold text-gray-500 uppercase tracking-wide whitespace-nowrap first:pl-6 last:pr-6">
-                              {h}
-                            </th>
-                          )
-                        )}
+                        {["#","College","Type","Course","Degree","Streams","Exam","Category","Score","Rank","Year","Rnd"].map((h) => (
+                          <th key={h} className="text-left px-3 py-2.5 font-semibold text-gray-500 uppercase tracking-wide whitespace-nowrap first:pl-6 last:pr-6">{h}</th>
+                        ))}
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-50">
@@ -503,9 +410,7 @@ export default function BulkUploadPage() {
                           <td className="px-3 py-2.5 text-gray-600">{row.collegeType}</td>
                           <td className="px-3 py-2.5 text-gray-700 max-w-[130px] truncate">{row.courseName}</td>
                           <td className="px-3 py-2.5">
-                            <span className="px-1.5 py-0.5 bg-blue-50 text-blue-700 rounded text-[10px] font-medium">
-                              {row.degreeType}
-                            </span>
+                            <span className="px-1.5 py-0.5 bg-blue-50 text-blue-700 rounded text-[10px] font-medium">{row.degreeType}</span>
                           </td>
                           <td className="px-3 py-2.5 text-gray-600">{row.eligibleStreams}</td>
                           <td className="px-3 py-2.5 text-gray-700">{row.exam}</td>
@@ -522,45 +427,80 @@ export default function BulkUploadPage() {
               </div>
             )}
 
-            {/* Commit Button */}
+            {importError && (
+              <div className="flex items-center gap-2 bg-red-50 text-red-600 border border-red-200 rounded-xl px-4 py-3 text-sm font-medium">
+                <AlertTriangle size={16} /> {importError}
+              </div>
+            )}
+
+            {/* Commit */}
             <div className="flex items-center gap-3">
               <button
                 onClick={handleCommit}
-                disabled={validRows.length === 0}
-                className="px-6 py-2.5 bg-[#2563EB] hover:bg-[#1D4ED8] disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-semibold rounded-xl transition-colors shadow-sm"
+                disabled={validRows.length === 0 || importing}
+                className="flex items-center gap-2 px-6 py-2.5 bg-[#2563EB] hover:bg-[#1D4ED8] disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-semibold rounded-xl transition-colors shadow-sm"
               >
+                {importing && <Loader2 size={15} className="animate-spin" />}
                 Import {validRows.length} Valid Row{validRows.length !== 1 ? "s" : ""} to Database
               </button>
-              <button
-                onClick={handleReset}
-                className="px-6 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-semibold rounded-xl transition-colors"
-              >
+              <button onClick={handleReset} className="px-6 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-semibold rounded-xl transition-colors">
                 Upload Different File
               </button>
             </div>
           </div>
         )}
 
-        {/* Success State */}
-        {committed && (
-          <div className="bg-white rounded-2xl border border-green-100 shadow-sm p-8 flex flex-col items-center gap-4 text-center">
-            <div className="w-14 h-14 bg-green-100 rounded-full flex items-center justify-center">
-              <CheckCircle2 size={28} className="text-green-600" />
+        {/* Success / Result State */}
+        {result && (
+          <div className="space-y-4">
+            <div className="bg-white rounded-2xl border border-green-100 shadow-sm p-8 flex flex-col items-center gap-4 text-center">
+              <div className="w-14 h-14 bg-green-100 rounded-full flex items-center justify-center">
+                <CheckCircle2 size={28} className="text-green-600" />
+              </div>
+              <div>
+                <p className="text-base font-bold text-gray-800">Import Complete</p>
+                <p className="text-sm text-gray-500 mt-1">{result.processed} rows processed successfully</p>
+              </div>
+
+              {/* Result Breakdown */}
+              <div className="w-full max-w-md grid grid-cols-2 gap-3 text-left mt-2">
+                {[
+                  { label: "Colleges created", value: result.colleges.created },
+                  { label: "Colleges existing", value: result.colleges.existing },
+                  { label: "Courses created", value: result.courses.created },
+                  { label: "Courses existing", value: result.courses.existing },
+                  { label: "Links created", value: result.links.created },
+                  { label: "Links existing", value: result.links.existing },
+                  { label: "Cutoffs added", value: result.cutoffs.created },
+                  { label: "Cutoffs updated", value: result.cutoffs.updated },
+                ].map(({ label, value }) => (
+                  <div key={label} className="bg-gray-50 rounded-xl px-4 py-3">
+                    <p className="text-lg font-bold text-gray-900">{value}</p>
+                    <p className="text-xs text-gray-500 mt-0.5">{label}</p>
+                  </div>
+                ))}
+              </div>
+
+              {result.errors.length > 0 && (
+                <div className="w-full max-w-md bg-red-50 border border-red-100 rounded-xl p-4 text-left">
+                  <p className="text-sm font-semibold text-red-700 mb-2">
+                    {result.errors.length} rows had errors during import
+                  </p>
+                  <ul className="space-y-1">
+                    {result.errors.map((e, i) => (
+                      <li key={i} className="text-xs text-red-600 flex items-start gap-2">
+                        <XCircle size={12} className="mt-0.5 flex-shrink-0" />
+                        Row {e.rowIndex}: {e.message}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              <button onClick={handleReset} className="px-5 py-2 bg-[#2563EB] hover:bg-[#1D4ED8] text-white text-sm font-semibold rounded-xl transition-colors">
+                Upload Another File
+              </button>
             </div>
-            <div>
-              <p className="text-base font-bold text-gray-800">
-                {validRows.length} rows imported successfully
-              </p>
-              <p className="text-sm text-gray-500 mt-1">
-                The data has been saved. You can verify it in the Colleges and Cutoff Data pages.
-              </p>
-            </div>
-            <button
-              onClick={handleReset}
-              className="px-5 py-2 bg-[#2563EB] hover:bg-[#1D4ED8] text-white text-sm font-semibold rounded-xl transition-colors"
-            >
-              Upload Another File
-            </button>
           </div>
         )}
       </div>

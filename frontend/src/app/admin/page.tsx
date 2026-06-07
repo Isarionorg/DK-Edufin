@@ -1,13 +1,10 @@
-import AdminHeader from "@/components/admin/AdminHeader";
-import { Building2, BookOpen, Link2, BarChart3, TrendingUp, Users } from "lucide-react";
-import Link from "next/link";
+"use client";
 
-const stats = [
-  { label: "Total Colleges", value: "0", icon: Building2, color: "bg-blue-50 text-blue-600", href: "/admin/colleges" },
-  { label: "Total Courses", value: "0", icon: BookOpen, color: "bg-indigo-50 text-indigo-600", href: "/admin/courses" },
-  { label: "College-Course Links", value: "0", icon: Link2, color: "bg-sky-50 text-sky-600", href: "/admin/college-courses" },
-  { label: "Cutoff Entries", value: "0", icon: BarChart3, color: "bg-cyan-50 text-cyan-600", href: "/admin/cutoffs" },
-];
+import { useEffect, useState } from "react";
+import AdminHeader from "@/components/admin/AdminHeader";
+import { Building2, BookOpen, Link2, BarChart3, TrendingUp, Users, Loader2 } from "lucide-react";
+import Link from "next/link";
+import { fetchStats, AdminStats } from "@/lib/adminapi";
 
 const quickActions = [
   { label: "Add New College", href: "/admin/colleges", desc: "Register a college with details", icon: Building2 },
@@ -18,6 +15,24 @@ const quickActions = [
 ];
 
 export default function AdminDashboard() {
+  const [stats, setStats] = useState<AdminStats | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetchStats()
+      .then(setStats)
+      .catch((e) => setError(e.message))
+      .finally(() => setLoading(false));
+  }, []);
+
+  const statCards = [
+    { label: "Total Colleges", value: stats?.colleges ?? 0, icon: Building2, color: "bg-blue-50 text-blue-600", href: "/admin/colleges" },
+    { label: "Total Courses", value: stats?.courses ?? 0, icon: BookOpen, color: "bg-indigo-50 text-indigo-600", href: "/admin/courses" },
+    { label: "College-Course Links", value: stats?.collegeCourses ?? 0, icon: Link2, color: "bg-sky-50 text-sky-600", href: "/admin/college-courses" },
+    { label: "Cutoff Entries", value: stats?.cutoffs ?? 0, icon: BarChart3, color: "bg-cyan-50 text-cyan-600", href: "/admin/cutoffs" },
+  ];
+
   return (
     <div className="flex flex-col flex-1">
       <AdminHeader
@@ -28,7 +43,7 @@ export default function AdminDashboard() {
       <div className="flex-1 p-8 space-y-8">
         {/* Stats Grid */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          {stats.map((stat) => {
+          {statCards.map((stat) => {
             const Icon = stat.icon;
             return (
               <Link
@@ -39,14 +54,24 @@ export default function AdminDashboard() {
                 <div className={`w-10 h-10 rounded-xl ${stat.color} flex items-center justify-center mb-4`}>
                   <Icon size={20} />
                 </div>
-                <p className="text-2xl font-bold text-gray-900 group-hover:text-[#2563EB] transition-colors">
-                  {stat.value}
-                </p>
+                {loading ? (
+                  <Loader2 size={20} className="animate-spin text-gray-300 mb-1" />
+                ) : (
+                  <p className="text-2xl font-bold text-gray-900 group-hover:text-[#2563EB] transition-colors">
+                    {stat.value.toLocaleString()}
+                  </p>
+                )}
                 <p className="text-sm text-gray-500 mt-1">{stat.label}</p>
               </Link>
             );
           })}
         </div>
+
+        {error && (
+          <div className="bg-red-50 border border-red-200 text-red-600 text-sm rounded-xl px-4 py-3">
+            Could not load stats: {error}
+          </div>
+        )}
 
         {/* Quick Actions */}
         <div>
@@ -83,7 +108,7 @@ export default function AdminDashboard() {
           <div>
             <p className="text-sm font-semibold text-[#1D4ED8]">Getting Started</p>
             <p className="text-sm text-[#3B82F6] mt-1">
-              Start by adding colleges, then create courses, link them together, and finally add cutoff data. 
+              Start by adding colleges, then create courses, link them together, and finally add cutoff data.
               Use Bulk Upload to import CSV/Excel files sent by partner colleges.
             </p>
           </div>

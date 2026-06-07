@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import AdminHeader from "@/components/admin/AdminHeader";
-import { College, CollegeType } from "@/types/admin";
-import { Plus, Trash2, Globe, CheckCircle2, XCircle } from "lucide-react";
+import { CollegeType } from "@/types/admin";
+import { Plus, Trash2, Globe, CheckCircle2, XCircle, Loader2, AlertCircle } from "lucide-react";
+import { fetchColleges, createCollege as apiCreateCollege, ApiCollege } from "@/lib/adminapi";
 
 const COLLEGE_TYPES: CollegeType[] = ["Government", "Private", "Deemed"];
 
@@ -25,10 +26,20 @@ const emptyForm = {
 };
 
 export default function CollegesPage() {
-  const [colleges, setColleges] = useState<College[]>([]);
+  const [colleges, setColleges] = useState<ApiCollege[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
   const [form, setForm] = useState(emptyForm);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [apiError, setApiError] = useState<string | null>(null);
   const [submitted, setSubmitted] = useState(false);
+
+  useEffect(() => {
+    fetchColleges()
+      .then(setColleges)
+      .catch((e) => setApiError(e.message))
+      .finally(() => setLoading(false));
+  }, []);
 
   const validate = () => {
     const e: Record<string, string> = {};
@@ -38,25 +49,33 @@ export default function CollegesPage() {
     return e;
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const errs = validate();
     setErrors(errs);
     if (Object.keys(errs).length > 0) return;
 
-    const newCollege: College = {
-      id: crypto.randomUUID(),
-      ...form,
-      createdAt: new Date().toISOString(),
-    };
-    setColleges((prev) => [newCollege, ...prev]);
-    setForm(emptyForm);
-    setSubmitted(true);
-    setTimeout(() => setSubmitted(false), 3000);
-  };
+    setSubmitting(true);
+    setApiError(null);
 
-  const deleteCollege = (id: string) => {
-    setColleges((prev) => prev.filter((c) => c.id !== id));
+    try {
+      const newCollege = await apiCreateCollege({
+        name: form.name,
+        type: form.type,
+        city: form.city,
+        state: form.state,
+        website: form.website || undefined,
+        isPartner: form.isPartner,
+      });
+      setColleges((prev) => [newCollege, ...prev]);
+      setForm(emptyForm);
+      setSubmitted(true);
+      setTimeout(() => setSubmitted(false), 3000);
+    } catch (err: any) {
+      setApiError(err.message);
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -73,8 +92,13 @@ export default function CollegesPage() {
 
           {submitted && (
             <div className="mb-4 flex items-center gap-2 bg-green-50 text-green-700 border border-green-200 rounded-xl px-4 py-3 text-sm font-medium">
-              <CheckCircle2 size={16} />
-              College added successfully!
+              <CheckCircle2 size={16} /> College added successfully!
+            </div>
+          )}
+
+          {apiError && (
+            <div className="mb-4 flex items-center gap-2 bg-red-50 text-red-600 border border-red-200 rounded-xl px-4 py-3 text-sm font-medium">
+              <AlertCircle size={16} /> {apiError}
             </div>
           )}
 
@@ -184,9 +208,7 @@ export default function CollegesPage() {
                   </div>
                   <span className="text-sm font-medium text-gray-700">
                     Partner College
-                    <span className="block text-xs text-gray-400 font-normal">
-                      College has a business tie-up
-                    </span>
+                    <span className="block text-xs text-gray-400 font-normal">College has a business tie-up</span>
                   </span>
                 </label>
               </div>
@@ -195,8 +217,10 @@ export default function CollegesPage() {
             <div className="pt-2">
               <button
                 type="submit"
-                className="px-6 py-2.5 bg-[#2563EB] hover:bg-[#1D4ED8] text-white text-sm font-semibold rounded-xl transition-colors shadow-sm"
+                disabled={submitting}
+                className="flex items-center gap-2 px-6 py-2.5 bg-[#2563EB] hover:bg-[#1D4ED8] disabled:opacity-60 disabled:cursor-not-allowed text-white text-sm font-semibold rounded-xl transition-colors shadow-sm"
               >
+                {submitting && <Loader2 size={15} className="animate-spin" />}
                 Add College
               </button>
             </div>
@@ -204,12 +228,14 @@ export default function CollegesPage() {
         </div>
 
         {/* Table */}
-        {colleges.length > 0 && (
+        {loading ? (
+          <div className="flex items-center justify-center py-12 text-gray-400 gap-2">
+            <Loader2 size={18} className="animate-spin" /> Loading colleges…
+          </div>
+        ) : colleges.length > 0 ? (
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
             <div className="px-6 py-4 border-b border-gray-100">
-              <h2 className="text-base font-semibold text-gray-800">
-                Added Colleges ({colleges.length})
-              </h2>
+              <h2 className="text-base font-semibold text-gray-800">Colleges ({colleges.length})</h2>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
@@ -219,17 +245,16 @@ export default function CollegesPage() {
                     <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Type</th>
                     <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">City, State</th>
                     <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Partner</th>
-                    <th className="text-right px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Action</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-50">
                   {colleges.map((c) => (
-                    <tr key={c.id} className="hover:bg-gray-50 transition-colors">
+                    <tr key={c.college_id} className="hover:bg-gray-50 transition-colors">
                       <td className="px-6 py-3.5 font-medium text-gray-800">
-                        {c.name}
-                        {c.website && (
+                        {c.college_name}
+                        {c.website_url && (
                           <a
-                            href={c.website}
+                            href={c.website_url}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="ml-2 text-[#2563EB] hover:underline text-xs"
@@ -240,30 +265,19 @@ export default function CollegesPage() {
                       </td>
                       <td className="px-6 py-3.5">
                         <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                          c.type === "Government"
-                            ? "bg-green-50 text-green-700"
-                            : c.type === "Private"
-                            ? "bg-purple-50 text-purple-700"
-                            : "bg-orange-50 text-orange-700"
+                          c.college_type === "Government" ? "bg-green-50 text-green-700" :
+                          c.college_type === "Private" ? "bg-purple-50 text-purple-700" : "bg-orange-50 text-orange-700"
                         }`}>
-                          {c.type}
+                          {c.college_type}
                         </span>
                       </td>
                       <td className="px-6 py-3.5 text-gray-600">{c.city}, {c.state}</td>
                       <td className="px-6 py-3.5">
-                        {c.isPartner ? (
+                        {c.is_partner ? (
                           <CheckCircle2 size={16} className="text-green-500" />
                         ) : (
                           <XCircle size={16} className="text-gray-300" />
                         )}
-                      </td>
-                      <td className="px-6 py-3.5 text-right">
-                        <button
-                          onClick={() => deleteCollege(c.id)}
-                          className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
-                        >
-                          <Trash2 size={15} />
-                        </button>
                       </td>
                     </tr>
                   ))}
@@ -271,7 +285,7 @@ export default function CollegesPage() {
               </table>
             </div>
           </div>
-        )}
+        ) : null}
       </div>
     </div>
   );

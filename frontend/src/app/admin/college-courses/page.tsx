@@ -1,34 +1,41 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import AdminHeader from "@/components/admin/AdminHeader";
-import { CollegeCourse } from "@/types/admin";
-import { Plus, Trash2, CheckCircle2, Link2 } from "lucide-react";
+import { Plus, CheckCircle2, Link2, Loader2, AlertCircle } from "lucide-react";
+import {
+  fetchColleges,
+  fetchCourses,
+  fetchCollegeCourses,
+  createCollegeCourse as apiCreateCollegeCourse,
+  ApiCollege,
+  ApiCourse,
+  ApiCollegeCourse,
+} from "@/lib/adminapi";
 
-// Mock data — replace with API calls later
-const MOCK_COLLEGES = [
-  { id: "c1", name: "Delhi University" },
-  { id: "c2", name: "IIT Bombay" },
-  { id: "c3", name: "Christ University" },
-];
-
-const MOCK_COURSES = [
-  { id: "co1", name: "B.Sc (Hons.) Mathematics" },
-  { id: "co2", name: "B.Tech Computer Science" },
-  { id: "co3", name: "MBA" },
-  { id: "co4", name: "B.Com (Hons.)" },
-];
-
-const emptyForm = {
-  collegeId: "",
-  courseId: "",
-};
+const emptyForm = { collegeId: "", courseId: "" };
 
 export default function CollegeCoursesPage() {
-  const [links, setLinks] = useState<CollegeCourse[]>([]);
+  const [colleges, setColleges] = useState<ApiCollege[]>([]);
+  const [courses, setCourses] = useState<ApiCourse[]>([]);
+  const [links, setLinks] = useState<ApiCollegeCourse[]>([]);
+  const [loadingData, setLoadingData] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
   const [form, setForm] = useState(emptyForm);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [apiError, setApiError] = useState<string | null>(null);
   const [submitted, setSubmitted] = useState(false);
+
+  useEffect(() => {
+    Promise.all([fetchColleges(), fetchCourses(), fetchCollegeCourses()])
+      .then(([c, co, l]) => {
+        setColleges(c);
+        setCourses(co);
+        setLinks(l);
+      })
+      .catch((e) => setApiError(e.message))
+      .finally(() => setLoadingData(false));
+  }, []);
 
   const validate = () => {
     const e: Record<string, string> = {};
@@ -36,7 +43,9 @@ export default function CollegeCoursesPage() {
     if (!form.courseId) e.course = "Please select a course";
     if (
       links.some(
-        (l) => l.collegeId === form.collegeId && l.courseId === form.courseId
+        (l) =>
+          l.college_id === Number(form.collegeId) &&
+          l.course_id === Number(form.courseId)
       )
     ) {
       e.duplicate = "This college-course pair is already linked";
@@ -44,27 +53,33 @@ export default function CollegeCoursesPage() {
     return e;
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const errs = validate();
     setErrors(errs);
     if (Object.keys(errs).length > 0) return;
 
-    const college = MOCK_COLLEGES.find((c) => c.id === form.collegeId)!;
-    const course = MOCK_COURSES.find((c) => c.id === form.courseId)!;
+    setSubmitting(true);
+    setApiError(null);
 
-    const newLink: CollegeCourse = {
-      id: crypto.randomUUID(),
-      collegeId: form.collegeId,
-      collegeName: college.name,
-      courseId: form.courseId,
-      courseName: course.name,
-    };
-    setLinks((prev) => [newLink, ...prev]);
-    setForm(emptyForm);
-    setSubmitted(true);
-    setTimeout(() => setSubmitted(false), 3000);
+    try {
+      const newLink = await apiCreateCollegeCourse({
+        collegeId: Number(form.collegeId),
+        courseId: Number(form.courseId),
+      });
+      setLinks((prev) => [newLink, ...prev]);
+      setForm(emptyForm);
+      setSubmitted(true);
+      setTimeout(() => setSubmitted(false), 3000);
+    } catch (err: any) {
+      setApiError(err.message);
+    } finally {
+      setSubmitting(false);
+    }
   };
+
+  const selectedCollege = colleges.find((c) => c.college_id === Number(form.collegeId));
+  const selectedCourse = courses.find((c) => c.course_id === Number(form.courseId));
 
   return (
     <div className="flex flex-col flex-1">
@@ -88,9 +103,10 @@ export default function CollegeCoursesPage() {
               <CheckCircle2 size={16} /> Link created successfully!
             </div>
           )}
-          {errors.duplicate && (
+
+          {(errors.duplicate || apiError) && (
             <div className="mb-4 flex items-center gap-2 bg-red-50 text-red-600 border border-red-200 rounded-xl px-4 py-3 text-sm font-medium">
-              {errors.duplicate}
+              <AlertCircle size={16} /> {errors.duplicate || apiError}
             </div>
           )}
 
@@ -104,13 +120,14 @@ export default function CollegeCoursesPage() {
                 <select
                   value={form.collegeId}
                   onChange={(e) => setForm({ ...form, collegeId: e.target.value })}
-                  className={`w-full px-4 py-2.5 rounded-xl border text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] transition-all ${
+                  disabled={loadingData}
+                  className={`w-full px-4 py-2.5 rounded-xl border text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] transition-all disabled:opacity-60 ${
                     errors.college ? "border-red-400 bg-red-50" : "border-gray-200 bg-gray-50"
                   }`}
                 >
                   <option value="">-- Select a college --</option>
-                  {MOCK_COLLEGES.map((c) => (
-                    <option key={c.id} value={c.id}>{c.name}</option>
+                  {colleges.map((c) => (
+                    <option key={c.college_id} value={c.college_id}>{c.college_name}</option>
                   ))}
                 </select>
                 {errors.college && <p className="text-xs text-red-500 mt-1">{errors.college}</p>}
@@ -124,13 +141,16 @@ export default function CollegeCoursesPage() {
                 <select
                   value={form.courseId}
                   onChange={(e) => setForm({ ...form, courseId: e.target.value })}
-                  className={`w-full px-4 py-2.5 rounded-xl border text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] transition-all ${
+                  disabled={loadingData}
+                  className={`w-full px-4 py-2.5 rounded-xl border text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] transition-all disabled:opacity-60 ${
                     errors.course ? "border-red-400 bg-red-50" : "border-gray-200 bg-gray-50"
                   }`}
                 >
                   <option value="">-- Select a course --</option>
-                  {MOCK_COURSES.map((c) => (
-                    <option key={c.id} value={c.id}>{c.name}</option>
+                  {courses.map((c) => (
+                    <option key={c.course_id} value={c.course_id}>
+                      {c.course_name} ({c.degree_type})
+                    </option>
                   ))}
                 </select>
                 {errors.course && <p className="text-xs text-red-500 mt-1">{errors.course}</p>}
@@ -138,34 +158,34 @@ export default function CollegeCoursesPage() {
             </div>
 
             {/* Preview */}
-            {form.collegeId && form.courseId && (
+            {selectedCollege && selectedCourse && (
               <div className="flex items-center gap-3 px-4 py-3 bg-[#EFF6FF] border border-[#BFDBFE] rounded-xl text-sm">
                 <Link2 size={15} className="text-[#2563EB] flex-shrink-0" />
-                <span className="text-[#1D4ED8] font-medium">
-                  {MOCK_COLLEGES.find((c) => c.id === form.collegeId)?.name}
-                </span>
+                <span className="text-[#1D4ED8] font-medium">{selectedCollege.college_name}</span>
                 <span className="text-[#93C5FD]">↔</span>
-                <span className="text-[#1D4ED8] font-medium">
-                  {MOCK_COURSES.find((c) => c.id === form.courseId)?.name}
-                </span>
+                <span className="text-[#1D4ED8] font-medium">{selectedCourse.course_name}</span>
               </div>
             )}
 
             <button
               type="submit"
-              className="px-6 py-2.5 bg-[#2563EB] hover:bg-[#1D4ED8] text-white text-sm font-semibold rounded-xl transition-colors shadow-sm"
+              disabled={submitting || loadingData}
+              className="flex items-center gap-2 px-6 py-2.5 bg-[#2563EB] hover:bg-[#1D4ED8] disabled:opacity-60 disabled:cursor-not-allowed text-white text-sm font-semibold rounded-xl transition-colors shadow-sm"
             >
+              {submitting && <Loader2 size={15} className="animate-spin" />}
               Create Link
             </button>
           </form>
         </div>
 
-        {links.length > 0 && (
+        {loadingData ? (
+          <div className="flex items-center justify-center py-12 text-gray-400 gap-2">
+            <Loader2 size={18} className="animate-spin" /> Loading data…
+          </div>
+        ) : links.length > 0 ? (
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
             <div className="px-6 py-4 border-b border-gray-100">
-              <h2 className="text-base font-semibold text-gray-800">
-                Linked Pairs ({links.length})
-              </h2>
+              <h2 className="text-base font-semibold text-gray-800">Linked Pairs ({links.length})</h2>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
@@ -174,22 +194,28 @@ export default function CollegeCoursesPage() {
                     <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">#</th>
                     <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">College</th>
                     <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Course</th>
-                    <th className="text-right px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Action</th>
+                    <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Degree</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-50">
                   {links.map((l, i) => (
-                    <tr key={l.id} className="hover:bg-gray-50 transition-colors">
+                    <tr key={l.college_course_id} className="hover:bg-gray-50 transition-colors">
                       <td className="px-6 py-3.5 text-gray-400 text-xs">{i + 1}</td>
-                      <td className="px-6 py-3.5 font-medium text-gray-800">{l.collegeName}</td>
-                      <td className="px-6 py-3.5 text-gray-600">{l.courseName}</td>
-                      <td className="px-6 py-3.5 text-right">
-                        <button
-                          onClick={() => setLinks((prev) => prev.filter((x) => x.id !== l.id))}
-                          className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
-                        >
-                          <Trash2 size={15} />
-                        </button>
+                      <td className="px-6 py-3.5 font-medium text-gray-800">
+                        {l.colleges?.college_name ?? "—"}
+                      </td>
+                      <td className="px-6 py-3.5 text-gray-600">
+                        {l.courses?.course_name ?? "—"}
+                      </td>
+                      <td className="px-6 py-3.5">
+                        {l.courses?.degree_type && (
+                          <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                            l.courses.degree_type === "UG" ? "bg-blue-50 text-blue-700" :
+                            l.courses.degree_type === "PG" ? "bg-purple-50 text-purple-700" : "bg-orange-50 text-orange-700"
+                          }`}>
+                            {l.courses.degree_type}
+                          </span>
+                        )}
                       </td>
                     </tr>
                   ))}
@@ -197,7 +223,7 @@ export default function CollegeCoursesPage() {
               </table>
             </div>
           </div>
-        )}
+        ) : null}
       </div>
     </div>
   );
