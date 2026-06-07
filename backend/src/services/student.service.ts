@@ -284,25 +284,77 @@ export const getAvailableExams = async () => {
   });
 };
 
-export const getAvailableCourses = async (
-  streamId?: number
-) => {
-  const mappings =
-    await prisma.course_eligible_streams.findMany({
-      where: streamId
-        ? {
-            stream_id: streamId
-          }
-        : undefined,
+// export const getAvailableCourses = async (
+//   streamId?: number
+// ) => {
+//   const mappings =
+//     await prisma.course_eligible_streams.findMany({
+//       where: streamId
+//         ? {
+//             stream_id: streamId
+//           }
+//         : undefined,
 
-      include: {
-        courses: true
+//       include: {
+//         courses: true
+//       }
+//     });
+
+//   return mappings
+//     .map((m) => m.courses)
+//     .filter(Boolean);
+// };
+
+export const getAvailableCourses = async (
+  streamId?: number,
+  examId?: number
+) => {
+  // Get course IDs valid for this stream
+  let streamCourseIds: number[] | undefined;
+  if (streamId) {
+    const mappings = await prisma.course_eligible_streams.findMany({
+      where: { stream_id: streamId },
+      select: { course_id: true }
+    });
+    streamCourseIds = [...new Set(mappings.map(m => m.course_id))];
+  }
+
+  // Get course IDs valid for this exam via college_course_exam_eligibility
+  let examCourseIds: number[] | undefined;
+  if (examId) {
+    const eligibility = await prisma.college_course_exam_eligibility.findMany({
+      where: { exam_id: examId },
+      select: {
+        college_courses: {
+          select: { course_id: true }
+        }
       }
     });
+    examCourseIds = [...new Set(
+  eligibility
+    .map(e => e.college_courses?.course_id)
+    .filter((id): id is number => id != null)
+)];
+  }
 
-  return mappings
-    .map((m) => m.courses)
-    .filter(Boolean);
+  // Intersect both filters
+  let validCourseIds: number[];
+  if (streamCourseIds && examCourseIds) {
+    const examSet = new Set(examCourseIds);
+    validCourseIds = streamCourseIds.filter(id => examSet.has(id));
+  } else {
+    validCourseIds = streamCourseIds ?? examCourseIds ?? [];
+  }
+
+  // If no filters at all, return everything
+  if (!streamId && !examId) {
+    return prisma.courses.findMany({ orderBy: { course_name: 'asc' } });
+  }
+
+  return prisma.courses.findMany({
+    where: { course_id: { in: validCourseIds } },
+    orderBy: { course_name: 'asc' }
+  });
 };
 
 export const getCategories = async () => {

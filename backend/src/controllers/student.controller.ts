@@ -219,17 +219,31 @@ export const getExams = async (req: AuthRequest, res: Response) => {
  * @desc    Get list of all available courses (optionally filtered by stream)
  * @access  Protected
  */
-export const getCourses = async (req: AuthRequest, res: Response) => {
+export const getCourses = async (
+  req: AuthRequest,
+  res: Response
+) => {
   try {
-    // AFTER
     const streamId = req.query.stream_id
       ? Number(req.query.stream_id)
       : undefined;
 
-    const courses = await studentService.getAvailableCourses(streamId);
+    const examId = req.query.exam_id
+      ? Number(req.query.exam_id)
+      : undefined;
 
-    return successResponse(res, 200, courses, 'Courses retrieved successfully');
+    const courses =
+      await studentService.getAvailableCourses(
+        streamId,
+        examId
+      );
 
+    return successResponse(
+      res,
+      200,
+      courses,
+      'Courses retrieved successfully'
+    );
   } catch (error: any) {
     return errorResponse(res, 500, 'Failed to retrieve courses', error);
   }

@@ -88,7 +88,10 @@ export default function StudentForm({
       preferredCourses: [],
     }));
     try {
-      const res = await axios.get(`/student/courses?stream_id=${streamId}`);
+      const res = await axios.get(
+  `/student/courses?stream_id=${streamId}&exam_id=${form.selectedExamId}`
+);
+
       setCourses(res.data.data);
     } catch (err) {
       console.error(err);
