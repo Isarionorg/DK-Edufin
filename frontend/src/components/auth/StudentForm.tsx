@@ -4,16 +4,6 @@ import { useState, useEffect } from "react";
 import Button from "@/components/ui/Button";
 import axios from "@/lib/axios";
 
-// ─────────────────────────────────────────────
-// CONSTANTS
-// ─────────────────────────────────────────────
-
-// export const STREAMS = ["Science", "Commerce", "Arts"];
-
-// ─────────────────────────────────────────────
-// TYPES
-// ─────────────────────────────────────────────
-
 export interface StudentFormData {
   category: number | "";
   stream_id: number | "";
@@ -31,10 +21,6 @@ export interface StudentFormProps {
   onCancel?: () => void;
   isModal?: boolean;
 }
-
-// ─────────────────────────────────────────────
-// COMPONENT
-// ─────────────────────────────────────────────
 
 export default function StudentForm({
   onSuccess,
@@ -57,10 +43,7 @@ export default function StudentForm({
     selectedExamId: "",
   });
 
-  // ─────────────────────────────────────────────
-  // FETCH INITIAL DATA
-  // ─────────────────────────────────────────────
-
+  // ── FETCH INITIAL DATA ──
   useEffect(() => {
     const fetchInitialData = async () => {
       try {
@@ -68,62 +51,44 @@ export default function StudentForm({
           axios.get("/student/categories"),
           axios.get("/student/exams"),
         ]);
-
         setCategories(catRes.data.data);
         setExams(examRes.data.data);
       } catch (err) {
         console.error("Failed to fetch initial data", err);
       }
     };
-
     fetchInitialData();
   }, []);
 
-  // Debug
   useEffect(() => {
     console.log("EXAMS:", exams);
   }, [exams]);
 
+  // ── HANDLERS ──
+  const handleExamSelection = async (examId: number) => {
+    setForm((prev) => ({
+      ...prev,
+      selectedExamId: examId,
+      stream_id: "",
+      preferredCourses: [],
+    }));
+    try {
+      const res = await axios.get(`/student/streams?examId=${examId}`);
+      setStreams(res.data.data);
+      setCourses([]);
+    } catch (err) {
+      console.error(err);
+    }
+  };
 
-  const handleExamSelection = async (
-  examId: number
-) => {
-  setForm((prev) => ({
-    ...prev,
-    selectedExamId: examId,
-    stream_id: "",
-    preferredCourses: [],
-  }));
-
-  try {
-    const res = await axios.get(
-      `/student/streams?examId=${examId}`
-    );
-
-    setStreams(res.data.data);
-    setCourses([]);
-  } catch (err) {
-    console.error(err);
-  }
-};
-  // ─────────────────────────────────────────────
-  // HANDLERS
-  // ─────────────────────────────────────────────
-
-  const handleStreamChange = async (
-    streamId: number
-  ) => {
+  const handleStreamChange = async (streamId: number) => {
     setForm((prev) => ({
       ...prev,
       stream_id: streamId,
       preferredCourses: [],
     }));
-
     try {
-      const res = await axios.get(
-        `/student/courses?stream_id=${streamId}`
-      );
-
+      const res = await axios.get(`/student/courses?stream_id=${streamId}`);
       setCourses(res.data.data);
     } catch (err) {
       console.error(err);
@@ -132,7 +97,6 @@ export default function StudentForm({
 
   const toggleExam = (exam: string) => {
     const exists = form.examScores.find((e) => e.examType === exam);
-
     if (exists) {
       setForm({
         ...form,
@@ -165,10 +129,21 @@ export default function StudentForm({
     setForm((prev) => ({
       ...prev,
       preferredCourses: prev.preferredCourses.includes(courseId)
-        ? prev.preferredCourses.filter(
-          (id) => id !== courseId
-        )
+        ? prev.preferredCourses.filter((id) => id !== courseId)
         : [...prev.preferredCourses, courseId],
+    }));
+  };
+
+  // ── SELECT ALL COURSES ──
+  const allCourseIds = courses.map((c) => c.course_id);
+  const allSelected =
+    allCourseIds.length > 0 &&
+    allCourseIds.every((id) => form.preferredCourses.includes(id));
+
+  const toggleSelectAll = () => {
+    setForm((prev) => ({
+      ...prev,
+      preferredCourses: allSelected ? [] : allCourseIds,
     }));
   };
 
@@ -178,19 +153,12 @@ export default function StudentForm({
     return "both";
   };
 
-  // ─────────────────────────────────────────────
-  // SUBMIT (TEMP - WILL FIX IN STEP 3)
-  // ─────────────────────────────────────────────
-
+  // ── SUBMIT ──
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
 
-    if (
-      !form.category ||
-      !form.stream_id ||
-      form.examScores.length === 0
-    ) {
+    if (!form.stream_id || form.examScores.length === 0) {
       setError("Please fill in all required fields");
       return;
     }
@@ -203,15 +171,8 @@ export default function StudentForm({
     setIsSubmitting(true);
 
     try {
-      // 🔹 CATEGORY → ID
-      const selectedCategoryId = form.category;
-
-      // 🔹 EXAMS → IDs
       const examPayload = form.examScores.map((e) => {
-        const matchedExam = exams.find(
-          (ex) => ex.exam_name === e.examType
-        );
-
+        const matchedExam = exams.find((ex) => ex.exam_name === e.examType);
         return {
           exam_id: matchedExam?.exam_id,
           score_value: e.marks,
@@ -220,17 +181,14 @@ export default function StudentForm({
         };
       });
 
-      // 🔹 COURSES → IDs
-      const coursePayload = form.preferredCourses.map(
-        (courseId, index) => ({
-          course_id: courseId,
-          priority: index + 1,
-        })
-      );
+      const coursePayload = form.preferredCourses.map((courseId, index) => ({
+        course_id: courseId,
+        priority: index + 1,
+      }));
 
       const payload = {
         profile: {
-          category_id: selectedCategoryId,
+          category_id: form.category || null,
           stream_id: form.stream_id,
         },
         exam_scores: examPayload,
@@ -238,7 +196,6 @@ export default function StudentForm({
       };
 
       await axios.post("/student/profile/complete", payload);
-
       onSuccess();
     } catch (err: any) {
       setError(err.response?.data?.message || "Failed to save profile");
@@ -247,10 +204,7 @@ export default function StudentForm({
     }
   };
 
-  // ─────────────────────────────────────────────
-  // UI
-  // ─────────────────────────────────────────────
-
+  // ── UI ──
   return (
     <form onSubmit={handleSubmit} className="space-y-8">
       {error && (
@@ -259,91 +213,39 @@ export default function StudentForm({
         </div>
       )}
 
-      {/* CATEGORY */}
-      <div>
-        <label className="block text-lg font-semibold mb-4">
-          Category *
-        </label>
-
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-          {categories.map((cat) => (
-            <button
-              key={cat.category_id}
-              type="button"
-              onClick={() =>
-                setForm({ ...form, category: cat.category_id })
-              }
-              className={`p-3 rounded-lg border-2 ${form.category === cat.category_id
-                ? "border-blue-600 bg-blue-50"
-                : "border-gray-200"
-                }`}
-            >
-              {cat.category_code === "UR" ? "GENERAL" : cat.category_code}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* STREAM */}
-      <div>
-        <label className="block text-lg font-semibold mb-4">
-          Stream *
-        </label>
-
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-          {streams.map((stream) => (
-            <button
-              key={stream.stream_id}
-              type="button"
-              onClick={() =>
-                handleStreamChange(stream.stream_id)
-              }
-              className={`p-3 rounded-lg border-2 ${form.stream_id === stream.stream_id
-                ? "border-blue-600 bg-blue-50"
-                : "border-gray-200"
-                }`}
-            >
-              {stream.stream_code}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* EXAMS */}
+      {/* 1 — EXAMS */}
       <div>
         <label className="block text-lg font-semibold mb-4">
           Exams *
         </label>
-
         {exams.map((examObj) => {
           const exam = examObj.exam_name;
-          const selected = form.examScores.find(
-            (e) => e.examType === exam
-          );
+          const selected = form.examScores.find((e) => e.examType === exam);
 
           return (
-            <div key={examObj.exam_id}>
+            <div key={examObj.exam_id} className="mb-3">
               <button
                 type="button"
                 onClick={() => {
-  toggleExam(exam);
-  handleExamSelection(examObj.exam_id);
-}}
-                className={`w-full p-3 rounded-lg border-2 text-left ${selected
-                  ? "border-blue-600 bg-blue-50"
-                  : "border-gray-200"
-                  }`}
+                  toggleExam(exam);
+                  handleExamSelection(examObj.exam_id);
+                }}
+                className={`w-full p-3 rounded-lg border-2 text-left ${
+                  selected
+                    ? "border-blue-600 bg-blue-50"
+                    : "border-gray-200"
+                }`}
               >
                 {exam.replace("_", " ")}
               </button>
 
               {selected && (
                 <div className="mt-3 ml-4 space-y-3">
-
-                  {/* CUET → SCORE */}
                   {getExamInputType(exam) === "score" && (
                     <div>
-                      <label className="text-sm text-gray-600">Score / Percentile</label>
+                      <label className="text-sm text-gray-600">
+                        Score / Percentile
+                      </label>
                       <input
                         type="number"
                         placeholder="Enter your score"
@@ -355,8 +257,6 @@ export default function StudentForm({
                       />
                     </div>
                   )}
-
-                  {/* JEE → RANK */}
                   {getExamInputType(exam) === "rank" && (
                     <div>
                       <label className="text-sm text-gray-600">Rank</label>
@@ -371,8 +271,6 @@ export default function StudentForm({
                       />
                     </div>
                   )}
-
-                  {/* FALLBACK */}
                   {getExamInputType(exam) === "both" && (
                     <>
                       <input
@@ -395,7 +293,6 @@ export default function StudentForm({
                       />
                     </>
                   )}
-
                 </div>
               )}
             </div>
@@ -403,29 +300,99 @@ export default function StudentForm({
         })}
       </div>
 
-      {/* COURSES */}
-      {form.stream_id && (
-        <div>
-          <label className="block text-lg font-semibold mb-4">
-            Preferred Courses *
-          </label>
-
-          {courses.map((course) => (
-            <label key={course.course_id} className="flex gap-2">
-              <input
-                type="checkbox"
-                checked={form.preferredCourses.includes(
-                  course.course_id
-                )}
-                onChange={() =>
-                  toggleCourse(course.course_id)
-                }
-              />
-              {course.course_name}
-            </label>
+      {/* 2 — STREAM */}
+      <div>
+        <label className="block text-lg font-semibold mb-4">
+          Stream *
+        </label>
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+          {streams.map((stream) => (
+            <button
+              key={stream.stream_id}
+              type="button"
+              onClick={() => handleStreamChange(stream.stream_id)}
+              className={`p-3 rounded-lg border-2 ${
+                form.stream_id === stream.stream_id
+                  ? "border-blue-600 bg-blue-50"
+                  : "border-gray-200"
+              }`}
+            >
+              {stream.stream_code}
+            </button>
           ))}
         </div>
+      </div>
+
+      {/* 3 — COURSES with Select All */}
+      {form.stream_id && (
+        <div>
+          <div className="flex items-center justify-between mb-4">
+            <label className="block text-lg font-semibold">
+              Preferred Courses *
+            </label>
+            {courses.length > 0 && (
+              <button
+                type="button"
+                onClick={toggleSelectAll}
+                className={`text-sm font-semibold px-4 py-1.5 rounded-lg border-2 transition-all duration-200 ${
+                  allSelected
+                    ? "border-blue-600 bg-blue-50 text-blue-600"
+                    : "border-gray-300 text-gray-500 hover:border-blue-400"
+                }`}
+              >
+                {allSelected ? "✓ All Selected" : "Select All"}
+              </button>
+            )}
+          </div>
+          <div className="space-y-2">
+            {courses.map((course) => (
+              <label
+                key={course.course_id}
+                className={`flex items-center gap-3 p-3 rounded-lg border-2 cursor-pointer transition-all duration-200 ${
+                  form.preferredCourses.includes(course.course_id)
+                    ? "border-blue-500 bg-blue-50"
+                    : "border-gray-200 hover:border-blue-300"
+                }`}
+              >
+                <input
+                  type="checkbox"
+                  checked={form.preferredCourses.includes(course.course_id)}
+                  onChange={() => toggleCourse(course.course_id)}
+                  className="w-4 h-4 accent-blue-500"
+                />
+                <span className="text-gray-700 text-sm font-medium">
+                  {course.course_name}
+                </span>
+              </label>
+            ))}
+          </div>
+        </div>
       )}
+
+      {/* 4 — CATEGORY */}
+      <div>
+        <label className="block text-lg font-semibold mb-4">
+          Category
+        </label>
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+          {categories.map((cat) => (
+            <button
+              key={cat.category_id}
+              type="button"
+              onClick={() =>
+                setForm({ ...form, category: cat.category_id })
+              }
+              className={`p-3 rounded-lg border-2 ${
+                form.category === cat.category_id
+                  ? "border-blue-600 bg-blue-50"
+                  : "border-gray-200"
+              }`}
+            >
+              {cat.category_code === "UR" ? "GENERAL" : cat.category_code}
+            </button>
+          ))}
+        </div>
+      </div>
 
       {/* BUTTONS */}
       <div className="flex gap-3">

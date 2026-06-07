@@ -420,7 +420,7 @@ function CollegesPageContent() {
               placeholder="Search colleges..."
               value={search}
               onChange={(e) => handleSearch(e.target.value)}
-              className="w-full px-5 py-3 rounded-xl text-gray-800 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300"
+              className="w-full px-5 py-3 rounded-xl text-gray-800 text-sm focus:outline-none focus:ring-2 focus:ring-white bg-white border-2 border-white/50 placeholder-gray-400 shadow-md"
             />
           </div>
         </div>

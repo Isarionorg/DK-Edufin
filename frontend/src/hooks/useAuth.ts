@@ -37,14 +37,14 @@ export function useAuth(): UseAuthReturn {
         const response = await axios.get("/student/profile", {
           headers: { Authorization: `Bearer ${token}` },
         });
-        
-        if (response.data?.data) {
+
+        if (response.data?.data?.user) {
           const userData: AuthUser = {
-            id: response.data.data.id || response.data.data.userId,
-            email: response.data.data.email,
-            name: response.data.data.fullName || response.data.data.name,
-            phone: response.data.data.phone,
-            role: response.data.data.role,
+            id: response.data.data.user.user_id,
+            email: response.data.data.user.email,
+            name: response.data.data.user.full_name,
+            phone: response.data.data.user.phone,
+            role: response.data.data.user.role,
           };
           setUser(userData);
           setIsAuthenticated(true);
