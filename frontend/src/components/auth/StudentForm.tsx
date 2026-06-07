@@ -121,8 +121,8 @@ export default function StudentForm({
 
     try {
       const res = await axios.get(
-        `/student/courses?stream_id=${streamId}`
-      );
+  `/student/courses?stream_id=${streamId}&exam_id=${form.selectedExamId}`
+);
 
       setCourses(res.data.data);
     } catch (err) {
