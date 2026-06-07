@@ -96,21 +96,21 @@ export default function Footer() {
                 <span className="text-lg mt-0.5">📞</span>
                 <div>
                   <p className="text-gray-400 text-xs mb-0.5">Phone</p>
-                  <p className="text-white text-sm font-medium">+91 99999 99999</p>
+                  <p className="text-white text-sm font-medium">+91 9870517589</p>
                 </div>
               </li>
               <li className="flex items-start gap-3">
                 <span className="text-lg mt-0.5">✉️</span>
                 <div>
                   <p className="text-gray-400 text-xs mb-0.5">E-mail</p>
-                  <p className="text-white text-sm font-medium">contact@dkedufin.com</p>
+                  <p className="text-white text-sm font-medium">dkedufinindia@gmial.com</p>
                 </div>
               </li>
               <li className="flex items-start gap-3">
                 <span className="text-lg mt-0.5">📍</span>
                 <div>
                   <p className="text-gray-400 text-xs mb-0.5">Address</p>
-                  <p className="text-white text-sm font-medium">Sector 18, Noida, UP</p>
+                  <p className="text-white text-sm font-medium">FS-14, Block F, Lajpat Nagar, Rajendra Nagar, Sahibabad, Ghaziabad, Uttar Pradesh 201005</p>
                 </div>
               </li>
             </ul>
