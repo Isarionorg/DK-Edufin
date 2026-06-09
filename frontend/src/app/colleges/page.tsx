@@ -141,6 +141,13 @@ function CollegeModal({
   const preferredCourses = college.courses.filter(c => c.is_preferred);
   const otherCourses = college.courses.filter(c => !c.is_preferred);
 
+  // Reusable cutoff label — same logic for both preferred and other courses
+  const cutoffLabel = (course: Course) => {
+    if (course.cutoff_value) return `Cutoff: ${course.cutoff_value}`;
+    if (course.cutoff_rank) return `Rank: ${course.cutoff_rank}`;
+    return null;
+  };
+
   return (
     <div
       className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center px-4"
@@ -197,7 +204,7 @@ function CollegeModal({
               <p className="text-xs text-gray-400 mb-2 font-semibold uppercase tracking-wide">
                 Your Preferred Courses
               </p>
-              <div className="flex flex-wrap gap-2">
+              <div className="flex flex-col gap-2">
                 {preferredCourses.map((course) => (
                   <div
                     key={course.course_id}
@@ -205,39 +212,45 @@ function CollegeModal({
                   >
                     <p className="text-sm font-semibold text-blue-700">
                       {course.course_name}
-                      {course.specialization
-                        ? ` — ${course.specialization}`
-                        : ""}
+                      {course.specialization ? ` — ${course.specialization}` : ""}
                     </p>
-                    <p className="text-xs text-blue-400 mt-0.5">
-                      {course.exam_name} •{" "}
-                      {course.cutoff_value
-                        ? `Cutoff: ${course.cutoff_value}`
-                        : course.cutoff_rank
-                        ? `Rank: ${course.cutoff_rank}`
-                        : ""}
-                    </p>
+                    {(course.exam_name || cutoffLabel(course)) && (
+                      <p className="text-xs text-blue-400 mt-0.5">
+                        {[course.exam_name, cutoffLabel(course)]
+                          .filter(Boolean)
+                          .join(" • ")}
+                      </p>
+                    )}
                   </div>
                 ))}
               </div>
             </div>
           )}
 
-          {/* OTHER COURSES */}
+          {/* OTHER COURSES — same card layout as preferred, different colours */}
           {otherCourses.length > 0 && (
             <div>
               <p className="text-xs text-gray-400 mb-2 font-semibold uppercase tracking-wide">
                 Other Available Courses
               </p>
-              <div className="flex flex-wrap gap-2">
+              <div className="flex flex-col gap-2">
                 {otherCourses.map((course) => (
-                  <span
+                  <div
                     key={course.course_id}
-                    className="text-sm bg-gray-100 text-gray-600 px-3 py-1.5 rounded-xl"
+                    className="bg-gray-50 border border-gray-200 rounded-xl p-3"
                   >
-                    {course.course_name}
-                    {course.specialization ? ` (${course.specialization})` : ""}
-                  </span>
+                    <p className="text-sm font-medium text-gray-700">
+                      {course.course_name}
+                      {course.specialization ? ` — ${course.specialization}` : ""}
+                    </p>
+                    {(course.exam_name || cutoffLabel(course)) && (
+                      <p className="text-xs text-gray-400 mt-0.5">
+                        {[course.exam_name, cutoffLabel(course)]
+                          .filter(Boolean)
+                          .join(" • ")}
+                      </p>
+                    )}
+                  </div>
                 ))}
               </div>
             </div>

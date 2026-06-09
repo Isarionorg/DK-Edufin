@@ -1,6 +1,19 @@
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, Prisma } from '@prisma/client';
 
 const prisma = new PrismaClient();
+
+// Prisma payload type for college_courses with all relations included in step 8
+type CollegeCourseWithCutoffs = Prisma.college_coursesGetPayload<{
+  include: {
+    courses: true;
+    course_specializations: true;
+    cutoff_data: {
+      include: {
+        exams: { select: { exam_name: true } };
+      };
+    };
+  };
+}>;
 
 // ============================================
 // TYPES
@@ -33,6 +46,8 @@ interface RecommendedCollege {
   is_partner: boolean;
   courses: RecommendedCourse[];
   match_score: number;
+  best_cutoff_rank: number | null;
+  best_cutoff_score: number | null;
 }
 
 // ============================================
@@ -50,13 +65,8 @@ export const getRecommendedColleges = async (
     where: { user_id: userId },
   });
 
-  if (!student) {
-    throw new Error('Student profile not found.');
-  }
-
-  if (!student.is_profile_complete) {
-    throw new Error('PROFILE_INCOMPLETE');
-  }
+  if (!student) throw new Error('Student profile not found.');
+  if (!student.is_profile_complete) throw new Error('PROFILE_INCOMPLETE');
 
   // ── 2. EXAM SCORES ──────────────────────────────────
   const examScores = await prisma.user_exam_scores.findMany({
@@ -75,44 +85,39 @@ export const getRecommendedColleges = async (
 
   const preferredCourseIds = new Set(coursePreferences.map(p => p.course_id));
 
-  // ── 4. GET COURSES VALID FOR STUDENT'S STREAM ───────
-  // We'll use this to filter out courses that don't belong to student's stream
+  // ── 4. STREAM-ELIGIBLE COURSE IDs ───────────────────
   const streamCourseIds = new Set<number>();
 
   if (student.stream_id != null) {
-const streamCourses = await prisma.course_eligible_streams.findMany({
-  where: { stream_id: student.stream_id },
-  select: { course_id: true },
-});
-
+    const streamCourses = await prisma.course_eligible_streams.findMany({
+      where: { stream_id: student.stream_id },
+      select: { course_id: true },
+    });
     for (const sc of streamCourses) {
       streamCourseIds.add(sc.course_id);
     }
   }
 
   // ── 5. FIND ELIGIBLE CUTOFFS ─────────────────────────
-  // For each exam score the student has, find cutoff rows they meet
+  // For each exam score the student has, find cutoff rows they meet.
   const cutoffConditions = examScores.map(score => {
     const condition: any = {
       exam_id: score.exam_id,
-      category_id: student.category_id,
+      ...(student.category_id != null && { category_id: student.category_id }),
     };
-
     if (score.score_value !== null) {
-      // Score-based: student's score must be >= cutoff_score
       condition.cutoff_score = { lte: score.score_value };
     } else if (score.rank_value !== null) {
-      // Rank-based: student's rank must be <= cutoff_rank (lower rank = better)
       condition.cutoff_rank = { gte: score.rank_value };
     }
-
     return condition;
   });
 
+  // examScoreMap for O(1) lookup instead of repeated .find() inside loops
+  const examScoreMap = new Map(examScores.map(s => [s.exam_id, s]));
+
   const eligibleCutoffs = await prisma.cutoff_data.findMany({
-    where: {
-      OR: cutoffConditions,
-    },
+    where: { OR: cutoffConditions },
     include: {
       college_courses: {
         include: {
@@ -128,22 +133,26 @@ const streamCourses = await prisma.course_eligible_streams.findMany({
   });
 
   // ── 6. BUILD COLLEGE MAP ─────────────────────────────
+  // Each eligible cutoff row maps to exactly one college_course (one course at
+  // one college). We add that course WITH its cutoff data (student is eligible).
+  // Courses the student is NOT eligible for are appended in step 8 below.
   const collegeMap = new Map<number, RecommendedCollege>();
 
   for (const cutoff of eligibleCutoffs) {
     const cc = cutoff.college_courses;
-    if (!cc || !cc.colleges || !cc.courses) continue;
+    if (!cc?.colleges || !cc.courses) continue;
 
     const college = cc.colleges;
     const course = cc.courses;
 
-    // Filter: only courses valid for student's stream
+    // Only stream-valid courses
     if (!streamCourseIds.has(course.course_id)) continue;
 
-    // Filter: search
-    if (search && !college.college_name.toLowerCase().includes(search.toLowerCase())) {
-      continue;
-    }
+    // Search filter
+    if (
+      search &&
+      !college.college_name.toLowerCase().includes(search.toLowerCase())
+    ) continue;
 
     // Init college entry
     if (!collegeMap.has(college.college_id)) {
@@ -157,13 +166,29 @@ const streamCourses = await prisma.course_eligible_streams.findMany({
         is_partner: college.is_partner ?? false,
         courses: [],
         match_score: 0,
+        best_cutoff_rank: null,
+        best_cutoff_score: null,
       });
     }
 
     const entry = collegeMap.get(college.college_id)!;
-    const isPreferred = preferredCourseIds.has(course.course_id);
 
-    // Avoid duplicate courses per college
+    // Track best rank/score for tie-breaking sort (step 9)
+    if (cutoff.cutoff_rank != null) {
+      entry.best_cutoff_rank =
+        entry.best_cutoff_rank == null
+          ? cutoff.cutoff_rank
+          : Math.min(entry.best_cutoff_rank, cutoff.cutoff_rank);
+    }
+    if (cutoff.cutoff_score != null) {
+      const s = Number(cutoff.cutoff_score);
+      entry.best_cutoff_score =
+        entry.best_cutoff_score == null
+          ? s
+          : Math.max(entry.best_cutoff_score, s);
+    }
+
+    // Add course with cutoff data (student meets this cutoff — show the values)
     const alreadyAdded = entry.courses.some(c => c.course_id === course.course_id);
     if (!alreadyAdded) {
       entry.courses.push({
@@ -171,53 +196,123 @@ const streamCourses = await prisma.course_eligible_streams.findMany({
         course_name: course.course_name,
         degree_type: course.degree_type ?? null,
         specialization: cc.course_specializations?.specialization_name ?? null,
-        cutoff_value: cutoff.cutoff_score ? Number(cutoff.cutoff_score) : null,
+        cutoff_value: cutoff.cutoff_score != null ? Number(cutoff.cutoff_score) : null,
         cutoff_rank: cutoff.cutoff_rank ?? null,
         exam_name: cutoff.exams?.exam_name ?? '',
-        is_preferred: isPreferred,
+        is_preferred: preferredCourseIds.has(course.course_id),
       });
     }
 
-    // ── 7. MATCH SCORE ─────────────────────────────────
-    // Base: 50
-    // +30 if any course is in student's preferences
-    // +10 if partner college
-    // +10 if student scored well above cutoff (margin > 5)
+    // ── 7. MATCH SCORE ──────────────────────────────────
+    const isPreferred = preferredCourseIds.has(course.course_id);
     let score = 50;
-
     if (isPreferred) score += 30;
     if (college.is_partner) score += 10;
 
-    // Cutoff margin bonus
-    const studentScore = examScores.find(s => s.exam_id === cutoff.exam_id);
-    if (studentScore?.score_value && cutoff.cutoff_score) {
-      const margin = Number(studentScore.score_value) - Number(cutoff.cutoff_score);
+    const studentExamScore = examScoreMap.get(cutoff.exam_id);
+    if (studentExamScore?.score_value && cutoff.cutoff_score) {
+      const margin = Number(studentExamScore.score_value) - Number(cutoff.cutoff_score);
       if (margin > 5) score += 10;
     }
 
-    // Keep the highest score across all cutoff rows for this college
     entry.match_score = Math.max(entry.match_score, score);
   }
 
-  // ── 8. SORT ──────────────────────────────────────────
+  // ── 8. APPEND REMAINING STREAM-VALID COURSES (with their actual cutoffs) ──
+  // For every college already in the map, fetch stream-valid courses not yet
+  // added by step 6 (i.e. student didn't meet that cutoff). We show these with
+  // their REAL cutoff value so the student can see what they missed.
+  // Courses with NO cutoff data in the DB at all are hidden entirely.
+  if (collegeMap.size > 0) {
+    const remainingCourses = await prisma.college_courses.findMany({
+      where: {
+        college_id: { in: Array.from(collegeMap.keys()) },
+        course_id: { in: Array.from(streamCourseIds) },
+      },
+      include: {
+        courses: true,
+        course_specializations: true,
+        // Only rows for the student's category + exams, latest first.
+        cutoff_data: {
+          where: {
+            ...(student.category_id != null && { category_id: student.category_id }),
+            exam_id: { in: examScores.map(s => s.exam_id).filter((id): id is number => id != null) },
+          },
+          orderBy: [
+            { academic_year: 'desc' },
+            { round_number: 'desc' },
+          ],
+          include: {
+            exams: { select: { exam_name: true } },
+          },
+        },
+      },
+    });
+
+    for (const cc of remainingCourses as CollegeCourseWithCutoffs[]) {
+      if (!cc.courses) continue;
+      const entry = cc.college_id != null ? collegeMap.get(cc.college_id) : undefined;
+      if (!entry) continue;
+
+      // Already added by step 6 (student met this cutoff) — skip.
+      const alreadyAdded = entry.courses.some(c => c.course_id === cc.courses!.course_id);
+      if (alreadyAdded) continue;
+
+      // No cutoff rows in DB for this course + student's category/exams.
+      // Nothing meaningful to show — hide it entirely.
+      if (cc.cutoff_data.length === 0) continue;
+
+      // Take the most recent row (already sorted latest-first).
+      const latestCutoff = cc.cutoff_data[0];
+
+      entry.courses.push({
+        course_id: cc.courses.course_id,
+        course_name: cc.courses.course_name,
+        degree_type: cc.courses.degree_type ?? null,
+        specialization: cc.course_specializations?.specialization_name ?? null,
+        // Real cutoff value — student didn't meet it, but it's visible.
+        cutoff_value: latestCutoff.cutoff_score != null
+          ? Number(latestCutoff.cutoff_score)
+          : null,
+        cutoff_rank: latestCutoff.cutoff_rank ?? null,
+        exam_name: latestCutoff.exams?.exam_name ?? '',
+        is_preferred: preferredCourseIds.has(cc.courses.course_id),
+      });
+    }
+  }
+
+  // ── 9. SORT ──────────────────────────────────────────
   const results = Array.from(collegeMap.values()).sort((a, b) => {
+    // 1. Match score (higher is better)
     if (b.match_score !== a.match_score) return b.match_score - a.match_score;
+
+    // 2. Best cutoff rank (lower number = more competitive = better)
+    if (a.best_cutoff_rank != null && b.best_cutoff_rank != null) {
+      if (a.best_cutoff_rank !== b.best_cutoff_rank)
+        return a.best_cutoff_rank - b.best_cutoff_rank;
+    } else if (a.best_cutoff_rank != null) return -1;
+    else if (b.best_cutoff_rank != null) return 1;
+
+    // 3. Best cutoff score (higher score = more competitive = better)
+    if (a.best_cutoff_score != null && b.best_cutoff_score != null) {
+      if (a.best_cutoff_score !== b.best_cutoff_score)
+        return b.best_cutoff_score - a.best_cutoff_score;
+    } else if (a.best_cutoff_score != null) return -1;
+    else if (b.best_cutoff_score != null) return 1;
+
+    // 4. Partner colleges first
     if (a.is_partner !== b.is_partner) return a.is_partner ? -1 : 1;
+
+    // 5. Alphabetical
     return a.college_name.localeCompare(b.college_name);
   });
 
-  // ── 9. PAGINATE ──────────────────────────────────────
+  // ── 10. PAGINATE ─────────────────────────────────────
   const total = results.length;
   const totalPages = Math.ceil(total / pageSize);
   const paginated = results.slice((page - 1) * pageSize, page * pageSize);
 
-  return {
-    data: paginated,
-    total,
-    page,
-    pageSize,
-    totalPages,
-  };
+  return { data: paginated, total, page, pageSize, totalPages };
 };
 
 // ============================================
@@ -228,30 +323,28 @@ export const getAllColleges = async (filters: CollegeFilters = {}) => {
   const { search, page = 1, pageSize = 9 } = filters;
 
   const whereClause: any = {};
-
   if (search) {
-    whereClause.college_name = {
-      contains: search,
-      mode: 'insensitive',
-    };
+    whereClause.college_name = { contains: search, mode: 'insensitive' };
   }
 
-  const total = await prisma.colleges.count({ where: whereClause });
-
-  const colleges = await prisma.colleges.findMany({
-    where: whereClause,
-    include: {
-      college_courses: {
-        include: {
-          courses: true,
-          course_specializations: true,
+  // Run count and data fetch in parallel
+  const [total, colleges] = await Promise.all([
+    prisma.colleges.count({ where: whereClause }),
+    prisma.colleges.findMany({
+      where: whereClause,
+      include: {
+        college_courses: {
+          include: {
+            courses: true,
+            course_specializations: true,
+          },
         },
       },
-    },
-    skip: (page - 1) * pageSize,
-    take: pageSize,
-    orderBy: [{ is_partner: 'desc' }, { college_name: 'asc' }],
-  });
+      skip: (page - 1) * pageSize,
+      take: pageSize,
+      orderBy: [{ is_partner: 'desc' }, { college_name: 'asc' }],
+    }),
+  ]);
 
   const data = colleges.map(college => ({
     college_id: college.college_id,
@@ -272,7 +365,6 @@ export const getAllColleges = async (filters: CollegeFilters = {}) => {
   }));
 
   return { data, total, page, pageSize, totalPages: Math.ceil(total / pageSize) };
-  // return { success: true, personalized: true, data: paginated, total, page, pageSize, totalPages };
 };
 
 // ============================================
@@ -316,9 +408,7 @@ export const getCollegeById = async (collegeId: number) => {
       .map(cc => ({
         course_id: cc.courses!.course_id,
         course_name: cc.courses!.course_name,
-        degree_type: cc.courses!.degree_type,
-        stream: cc.courses!.stream,
-        duration_years: cc.courses!.duration_years,
+        degree_type: cc.courses!.degree_type ?? null,
         specialization: cc.course_specializations?.specialization_name ?? null,
         cutoffs: cc.cutoff_data.map(c => ({
           exam: c.exams?.exam_name,
