@@ -35,6 +35,8 @@ export default function StudentForm({
   const [courses, setCourses] = useState<any[]>([]);
   const [streams, setStreams] = useState<any[]>([]);
 
+  const [courseSearch, setCourseSearch] = useState("");
+
   const [form, setForm] = useState<StudentFormData>({
     category: "",
     stream_id: "",
@@ -137,8 +139,16 @@ export default function StudentForm({
     }));
   };
 
+  const filteredCourses = courses.filter((course) =>
+  course.course_name
+    .toLowerCase()
+    .includes(courseSearch.toLowerCase())
+);
+
   // ── SELECT ALL COURSES ──
-  const allCourseIds = courses.map((c) => c.course_id);
+  const allCourseIds = filteredCourses.map(
+  (c) => c.course_id
+);
   const allSelected =
     allCourseIds.length > 0 &&
     allCourseIds.every((id) => form.preferredCourses.includes(id));
@@ -347,8 +357,15 @@ export default function StudentForm({
               </button>
             )}
           </div>
+          <input
+  type="text"
+  placeholder="Search courses..."
+  value={courseSearch}
+  onChange={(e) => setCourseSearch(e.target.value)}
+  className="w-full px-4 py-3 mb-4 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
+/>
           <div className="space-y-2">
-            {courses.map((course) => (
+  {filteredCourses.map((course) => (
               <label
                 key={course.course_id}
                 className={`flex items-center gap-3 p-3 rounded-lg border-2 cursor-pointer transition-all duration-200 ${
@@ -368,7 +385,10 @@ export default function StudentForm({
                 </span>
               </label>
             ))}
+          
+
           </div>
+          
         </div>
       )}
 
