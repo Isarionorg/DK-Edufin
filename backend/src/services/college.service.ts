@@ -117,7 +117,11 @@ export const getRecommendedColleges = async (
   const examScoreMap = new Map(examScores.map(s => [s.exam_id, s]));
 
   const eligibleCutoffs = await prisma.cutoff_data.findMany({
-    where: { OR: cutoffConditions },
+  where: { OR: cutoffConditions },
+  orderBy: [
+    { academic_year: 'desc' },
+    { round_number: 'desc' },
+  ],
     include: {
       college_courses: {
         include: {
@@ -189,19 +193,23 @@ export const getRecommendedColleges = async (
     }
 
     // Add course with cutoff data (student meets this cutoff — show the values)
-    const alreadyAdded = entry.courses.some(c => c.course_id === course.course_id);
-    if (!alreadyAdded) {
-      entry.courses.push({
-        course_id: course.course_id,
-        course_name: course.course_name,
-        degree_type: course.degree_type ?? null,
-        specialization: cc.course_specializations?.specialization_name ?? null,
-        cutoff_value: cutoff.cutoff_score != null ? Number(cutoff.cutoff_score) : null,
-        cutoff_rank: cutoff.cutoff_rank ?? null,
-        exam_name: cutoff.exams?.exam_name ?? '',
-        is_preferred: preferredCourseIds.has(course.course_id),
-      });
-    }
+    // Add course with cutoff data — first row wins (orderBy DESC guarantees it's the latest year)
+const alreadyAdded = entry.courses.some(c => c.course_id === course.course_id);
+
+if (!alreadyAdded) {
+  entry.courses.push({
+    course_id: course.course_id,
+    course_name: course.course_name,
+    degree_type: course.degree_type ?? null,
+    specialization: cc.course_specializations?.specialization_name ?? null,
+    cutoff_value: cutoff.cutoff_score != null ? Number(cutoff.cutoff_score) : null,
+    cutoff_rank: cutoff.cutoff_rank ?? null,
+    exam_name: cutoff.exams?.exam_name ?? '',
+    is_preferred: preferredCourseIds.has(course.course_id),
+  });
+}
+// No else — orderBy [academic_year DESC, round_number DESC] ensures
+// the first row we see per course is already the most recent one.
 
     // ── 7. MATCH SCORE ──────────────────────────────────
     const isPreferred = preferredCourseIds.has(course.course_id);

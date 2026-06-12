@@ -18,7 +18,7 @@ const VALID_COLLEGE_TYPES = ["Government", "Private", "Deemed"];
 const VALID_DEGREE_TYPES = ["UG", "PG", "Diploma"];
 const VALID_STREAMS = ["PCM", "PCB", "COMMERCE", "HUMANITIES", "ANY"];
 const VALID_EXAMS = ["CUET", "JEE_MAIN", "JEE_ADVANCED", "MHT_CET", "KCET", "WBJEE", "Other"];
-const VALID_CATEGORIES = ["UR/GENERAL", "OBC", "SC", "ST", "EWS", "PwBD"];
+const VALID_CATEGORIES = ["UR", "OBC", "SC", "ST", "EWS", "PwBD"];
 
 const TEMPLATE_HEADERS = [
   "collegeName","collegeType","city","state","website","isPartner",
@@ -27,7 +27,7 @@ const TEMPLATE_HEADERS = [
 ];
 const TEMPLATE_SAMPLE = [
   "Delhi University","Government","New Delhi","Delhi","https://du.ac.in","yes",
-  "B.Sc (Hons.) Mathematics","UG","PCM|PCB","CUET","UR/GENERAL","680","","2025","1",
+  "B.Sc (Hons.) Mathematics","UG","PCM|PCB","CUET","UR","680","","2025","1",
 ];
 
 function validateRow(row: Record<string, string>, index: number): ParsedRow {
@@ -282,7 +282,7 @@ export default function BulkUploadPage() {
                   ["degreeType","✓","UG | PG | Diploma"],
                   ["eligibleStreams","✓","PCM | PCB | COMMERCE | HUMANITIES | ANY (pipe-separated)"],
                   ["exam","✓","CUET | JEE_MAIN | JEE_ADVANCED | MHT_CET | KCET | WBJEE | Other"],
-                  ["category","✓","UR/GENERAL | OBC | SC | ST | EWS | PwBD"],
+                  ["category","✓","UR | OBC | SC | ST | EWS | PwBD"],
                   ["cutoffScore","","Number (for CUET)"],
                   ["cutoffRank","","Number (for JEE/CETs)"],
                   ["academicYear","✓","4-digit year e.g. 2025"],
