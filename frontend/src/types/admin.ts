@@ -1,7 +1,7 @@
 export type CollegeType = "Government" | "Private" | "Deemed";
 export type DegreeType = "UG" | "PG" | "Diploma";
 export type Stream = "PCM" | "PCB" | "COMMERCE" | "HUMANITIES" | "ANY";
-export type Category = "UR/GENERAL" | "OBC" | "SC" | "ST" | "EWS" | "PwBD";
+export type Category = "UR" | "OBC" | "SC" | "ST" | "EWS" | "PwBD";
 export type Exam = "CUET" | "JEE_MAIN" | "JEE_ADVANCED" | "MHT_CET" | "KCET" | "WBJEE" | "Other";
 
 export interface College {

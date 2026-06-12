@@ -13,7 +13,7 @@ import {
 } from "@/lib/adminapi";
 
 const EXAMS: Exam[] = ["CUET", "JEE_MAIN", "JEE_ADVANCED", "MHT_CET", "KCET", "WBJEE", "Other"];
-const CATEGORIES: Category[] = ["UR/GENERAL", "OBC", "SC", "ST", "EWS", "PwBD"];
+const CATEGORIES: Category[] = ["UR", "OBC", "SC", "ST", "EWS", "PwBD"];
 
 const SCORE_EXAMS: Exam[] = ["CUET"];
 const RANK_EXAMS: Exam[] = ["JEE_MAIN", "JEE_ADVANCED", "MHT_CET", "KCET", "WBJEE"];
