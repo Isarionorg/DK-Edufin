@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import AdminHeader from "@/components/admin/AdminHeader";
-import { Building2, BookOpen, Link2, BarChart3, TrendingUp, Users, Loader2 } from "lucide-react";
+import { Building2, BookOpen, Link2, BarChart3, TrendingUp, Users, Loader2, GraduationCap } from "lucide-react";
 import Link from "next/link";
 import { fetchStats, AdminStats } from "@/lib/adminapi";
 
@@ -10,6 +10,7 @@ const quickActions = [
   { label: "Add New College", href: "/admin/colleges", desc: "Register a college with details", icon: Building2 },
   { label: "Add New Course", href: "/admin/courses", desc: "Create a course offering", icon: BookOpen },
   { label: "Link College & Course", href: "/admin/college-courses", desc: "Map courses to colleges", icon: Link2 },
+  { label: "Add Exam", href: "/admin/exams", desc: "Register a new entrance exam", icon: GraduationCap },
   { label: "Add Cutoff Data", href: "/admin/cutoffs", desc: "Enter exam cutoff scores/ranks", icon: BarChart3 },
   { label: "Bulk Upload (CSV/Excel)", href: "/admin/bulk-upload", desc: "Upload data from colleges in bulk", icon: TrendingUp },
 ];
@@ -31,6 +32,7 @@ export default function AdminDashboard() {
     { label: "Total Courses", value: stats?.courses ?? 0, icon: BookOpen, color: "bg-indigo-50 text-indigo-600", href: "/admin/courses" },
     { label: "College-Course Links", value: stats?.collegeCourses ?? 0, icon: Link2, color: "bg-sky-50 text-sky-600", href: "/admin/college-courses" },
     { label: "Cutoff Entries", value: stats?.cutoffs ?? 0, icon: BarChart3, color: "bg-cyan-50 text-cyan-600", href: "/admin/cutoffs" },
+    // { label: "Total Exams", value: stats?.exams ?? 0, icon: GraduationCap, color: "bg-violet-50 text-violet-600", href: "/admin/exams" },
   ];
 
   return (
@@ -42,7 +44,7 @@ export default function AdminDashboard() {
 
       <div className="flex-1 p-8 space-y-8">
         {/* Stats Grid */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
           {statCards.map((stat) => {
             const Icon = stat.icon;
             return (
@@ -108,8 +110,8 @@ export default function AdminDashboard() {
           <div>
             <p className="text-sm font-semibold text-[#1D4ED8]">Getting Started</p>
             <p className="text-sm text-[#3B82F6] mt-1">
-              Start by adding colleges, then create courses, link them together, and finally add cutoff data.
-              Use Bulk Upload to import CSV/Excel files sent by partner colleges.
+              Start by adding colleges, then create courses, link them together, register exams,
+              and finally add cutoff data. Use Bulk Upload to import CSV/Excel files sent by partner colleges.
             </p>
           </div>
         </div>
