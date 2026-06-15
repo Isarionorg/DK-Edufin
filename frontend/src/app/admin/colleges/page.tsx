@@ -3,8 +3,13 @@
 import { useState, useEffect } from "react";
 import AdminHeader from "@/components/admin/AdminHeader";
 import { CollegeType } from "@/types/admin";
-import { Plus, Trash2, Globe, CheckCircle2, XCircle, Loader2, AlertCircle } from "lucide-react";
-import { fetchColleges, createCollege as apiCreateCollege, ApiCollege } from "@/lib/adminapi";
+import { Plus, Globe, CheckCircle2, XCircle, Loader2, AlertCircle, Pencil } from "lucide-react";
+import {
+  fetchColleges,
+  createCollege as apiCreateCollege,
+  updateCollege as apiUpdateCollege,
+  ApiCollege,
+} from "@/lib/adminapi";
 
 const COLLEGE_TYPES: CollegeType[] = ["Government", "Private", "Deemed"];
 
@@ -33,6 +38,7 @@ export default function CollegesPage() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [apiError, setApiError] = useState<string | null>(null);
   const [submitted, setSubmitted] = useState(false);
+  const [editingId, setEditingId] = useState<number | null>(null);
 
   useEffect(() => {
     fetchColleges()
@@ -49,6 +55,27 @@ export default function CollegesPage() {
     return e;
   };
 
+  const startEdit = (college: ApiCollege) => {
+    setEditingId(college.college_id);
+    setForm({
+      name: college.college_name,
+      type: (college.college_type as CollegeType) || "Government",
+      city: college.city || "",
+      state: college.state || "",
+      website: college.website_url || "",
+      isPartner: !!college.is_partner,
+    });
+    setErrors({});
+    setApiError(null);
+  };
+
+  const cancelEdit = () => {
+    setEditingId(null);
+    setForm(emptyForm);
+    setErrors({});
+    setApiError(null);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const errs = validate();
@@ -59,15 +86,30 @@ export default function CollegesPage() {
     setApiError(null);
 
     try {
-      const newCollege = await apiCreateCollege({
-        name: form.name,
-        type: form.type,
-        city: form.city,
-        state: form.state,
-        website: form.website || undefined,
-        isPartner: form.isPartner,
-      });
-      setColleges((prev) => [newCollege, ...prev]);
+      if (editingId) {
+        const updated = await apiUpdateCollege(editingId, {
+          name: form.name,
+          type: form.type,
+          city: form.city,
+          state: form.state,
+          website: form.website || undefined,
+          isPartner: form.isPartner,
+        });
+        setColleges((prev) =>
+          prev.map((c) => (c.college_id === editingId ? updated : c))
+        );
+        setEditingId(null);
+      } else {
+        const newCollege = await apiCreateCollege({
+          name: form.name,
+          type: form.type,
+          city: form.city,
+          state: form.state,
+          website: form.website || undefined,
+          isPartner: form.isPartner,
+        });
+        setColleges((prev) => [newCollege, ...prev]);
+      }
       setForm(emptyForm);
       setSubmitted(true);
       setTimeout(() => setSubmitted(false), 3000);
@@ -87,12 +129,13 @@ export default function CollegesPage() {
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
           <h2 className="text-base font-semibold text-gray-800 mb-6 flex items-center gap-2">
             <Plus size={18} className="text-[#2563EB]" />
-            Add New College
+            {editingId ? "Edit College" : "Add New College"}
           </h2>
 
           {submitted && (
             <div className="mb-4 flex items-center gap-2 bg-green-50 text-green-700 border border-green-200 rounded-xl px-4 py-3 text-sm font-medium">
-              <CheckCircle2 size={16} /> College added successfully!
+              <CheckCircle2 size={16} />
+              {editingId ? "College updated successfully!" : "College added successfully!"}
             </div>
           )}
 
@@ -214,15 +257,24 @@ export default function CollegesPage() {
               </div>
             </div>
 
-            <div className="pt-2">
+            <div className="pt-2 flex items-center gap-3">
               <button
                 type="submit"
                 disabled={submitting}
                 className="flex items-center gap-2 px-6 py-2.5 bg-[#2563EB] hover:bg-[#1D4ED8] disabled:opacity-60 disabled:cursor-not-allowed text-white text-sm font-semibold rounded-xl transition-colors shadow-sm"
               >
                 {submitting && <Loader2 size={15} className="animate-spin" />}
-                Add College
+                {editingId ? "Save Changes" : "Add College"}
               </button>
+              {editingId && (
+                <button
+                  type="button"
+                  onClick={cancelEdit}
+                  className="px-6 py-2.5 border border-gray-200 hover:bg-gray-50 text-gray-600 text-sm font-semibold rounded-xl transition-colors"
+                >
+                  Cancel
+                </button>
+              )}
             </div>
           </form>
         </div>
@@ -245,11 +297,17 @@ export default function CollegesPage() {
                     <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Type</th>
                     <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">City, State</th>
                     <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Partner</th>
+                    <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-50">
                   {colleges.map((c) => (
-                    <tr key={c.college_id} className="hover:bg-gray-50 transition-colors">
+                    <tr
+                      key={c.college_id}
+                      className={`hover:bg-gray-50 transition-colors ${
+                        editingId === c.college_id ? "bg-blue-50/50" : ""
+                      }`}
+                    >
                       <td className="px-6 py-3.5 font-medium text-gray-800">
                         {c.college_name}
                         {c.website_url && (
@@ -278,6 +336,14 @@ export default function CollegesPage() {
                         ) : (
                           <XCircle size={16} className="text-gray-300" />
                         )}
+                      </td>
+                      <td className="px-6 py-3.5">
+                        <button
+                          onClick={() => startEdit(c)}
+                          className="flex items-center gap-1 text-xs font-medium text-[#2563EB] hover:underline"
+                        >
+                          <Pencil size={13} /> Edit
+                        </button>
                       </td>
                     </tr>
                   ))}

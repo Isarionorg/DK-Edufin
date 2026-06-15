@@ -64,3 +64,59 @@ export async function createCollege(req: Request, res: Response) {
     return res.status(500).json({ success: false, message: "Failed to create college" });
   }
 }
+
+export async function updateCollege(req: Request, res: Response) {
+  try {
+    const { id } = req.params;
+    const { name, type, city, state, website, isPartner } = req.body;
+
+    const collegeId = Number(id);
+    if (!collegeId) {
+      return res.status(400).json({ success: false, message: "Invalid college id" });
+    }
+
+    const existing = await prisma.colleges.findUnique({ where: { college_id: collegeId } });
+    if (!existing) {
+      return res.status(404).json({ success: false, message: "College not found" });
+    }
+
+    if (name !== undefined && !name.trim()) {
+      return res.status(400).json({ success: false, message: "College name cannot be empty" });
+    }
+    if (city !== undefined && !city.trim()) {
+      return res.status(400).json({ success: false, message: "City cannot be empty" });
+    }
+    if (state !== undefined && !state.trim()) {
+      return res.status(400).json({ success: false, message: "State cannot be empty" });
+    }
+
+    const validTypes = ["Government", "Private", "Deemed"];
+    if (type && !validTypes.includes(type)) {
+      return res.status(400).json({ success: false, message: `College type must be one of: ${validTypes.join(", ")}` });
+    }
+
+    const college = await prisma.colleges.update({
+      where: { college_id: collegeId },
+      data: {
+        ...(name !== undefined && { college_name: name.trim() }),
+        ...(type !== undefined && { college_type: type }),
+        ...(city !== undefined && { city: city.trim() }),
+        ...(state !== undefined && { state: state.trim() }),
+        ...(website !== undefined && { website_url: website?.trim() || null }),
+        ...(isPartner !== undefined && { is_partner: Boolean(isPartner) }),
+        updated_at: new Date(),
+      },
+    });
+
+    return res.json({ success: true, data: college });
+  } catch (error: any) {
+    console.error("[updateCollege]", error);
+    if (error.code === "P2002") {
+      return res.status(409).json({ success: false, message: "A college with this name already exists" });
+    }
+    if (error.code === "P2025") {
+      return res.status(404).json({ success: false, message: "College not found" });
+    }
+    return res.status(500).json({ success: false, message: "Failed to update college" });
+  }
+}

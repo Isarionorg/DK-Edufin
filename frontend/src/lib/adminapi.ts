@@ -184,3 +184,54 @@ export async function bulkUpload(rows: object[]): Promise<BulkUploadResult> {
   if (!res.success || !res.data) throw new Error(res.message ?? "Bulk upload failed");
   return res.data;
 }
+
+// ── Exams ─────────────────────────────────────────────────────────────────
+
+export interface ApiExam {
+  exam_id: number;
+  exam_name: string;
+  exam_full_name: string | null;
+  qualification_type: string;
+  description: string | null;
+  created_at: string | null;
+}
+
+export async function fetchExams(): Promise<ApiExam[]> {
+  const res = await apiFetch<ApiExam[]>("/admin/exams");
+  if (!res.success || !res.data) throw new Error(res.message ?? "Failed to fetch exams");
+  return res.data;
+}
+
+export async function createExam(payload: {
+  examName: string;
+  examFullName?: string;
+  qualificationType: string;
+  description?: string;
+}): Promise<ApiExam> {
+  const res = await apiFetch<ApiExam>("/admin/exams", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+  if (!res.success || !res.data) throw new Error(res.message ?? "Failed to create exam");
+  return res.data;
+}
+
+
+export async function updateCollege(
+  id: number,
+  payload: {
+    name?: string;
+    type?: string;
+    city?: string;
+    state?: string;
+    website?: string;
+    isPartner?: boolean;
+  }
+): Promise<ApiCollege> {
+  const res = await apiFetch<ApiCollege>(`/admin/colleges/${id}`, {
+    method: "PUT",
+    body: JSON.stringify(payload),
+  });
+  if (!res.success || !res.data) throw new Error(res.message ?? "Failed to update college");
+  return res.data;
+}

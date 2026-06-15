@@ -11,8 +11,11 @@ import {
   ApiCollegeCourse,
   ApiCutoff,
 } from "@/lib/adminapi";
+import { fetchExams, ApiExam } from "@/lib/adminapi";
 
-const EXAMS: Exam[] = ["CUET", "JEE_MAIN", "JEE_ADVANCED", "MHT_CET", "KCET", "WBJEE", "Other"];
+
+
+// const EXAMS: Exam[] = ["CUET", "JEE_MAIN", "JEE_ADVANCED", "MHT_CET", "KCET", "WBJEE", "Other"];
 const CATEGORIES: Category[] = ["UR", "OBC", "SC", "ST", "EWS", "PwBD"];
 
 const SCORE_EXAMS: Exam[] = ["CUET"];
@@ -37,6 +40,19 @@ export default function CutoffsPage() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [apiError, setApiError] = useState<string | null>(null);
   const [submitted, setSubmitted] = useState(false);
+
+
+  const [examsList, setExamsList] = useState<ApiExam[]>([]);
+useEffect(() => {
+  Promise.all([fetchCollegeCourses(), fetchCutoffs(), fetchExams()])
+    .then(([p, c, ex]) => {
+      setPairs(p);
+      setCutoffs(c);
+      setExamsList(ex);
+    })
+    .catch((e) => setApiError(e.message))
+    .finally(() => setLoadingData(false));
+}, []);
 
   useEffect(() => {
     Promise.all([fetchCollegeCourses(), fetchCutoffs()])
@@ -164,10 +180,10 @@ export default function CutoffsPage() {
                   }`}
                 >
                   <option value="">-- Select exam --</option>
-                  {EXAMS.map((ex) => (
-                    <option key={ex} value={ex}>{ex.replace(/_/g, " ")}</option>
-                  ))}
-                </select>
+  {examsList.map((ex) => (
+    <option key={ex.exam_id} value={ex.exam_name}>{ex.exam_name.replace(/_/g, " ")}</option>
+  ))}
+</select>
                 {errors.exam && <p className="text-xs text-red-500 mt-1">{errors.exam}</p>}
               </div>
 

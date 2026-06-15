@@ -1,11 +1,13 @@
 // admin panel routes to be added here
 import { Router } from "express";
 import { getStats } from "../controllers/admin/stats.controller";
-import { createCollege, getColleges } from "../controllers/admin/colleges.controller";
+// import { createCollege, getColleges } from "../controllers/admin/colleges.controller";
 import { createCourse, getCourses } from "../controllers/admin/courses.controller";
 import { createCollegeCourse, getCollegeCourses } from "../controllers/admin/collegecourses.controller";
 import { createCutoff, getCutoffs } from "../controllers/admin/cutoffs.controller";
 import { bulkUpload } from "../controllers/admin/bulkupload.controller";
+import { createExam, getExams } from "../controllers/admin/exam.controller";
+import { createCollege, getColleges, updateCollege } from "../controllers/admin/colleges.controller";
 
 const router = Router();
 
@@ -15,6 +17,7 @@ router.get("/stats", getStats);
 // Colleges
 router.get("/colleges", getColleges);
 router.post("/colleges", createCollege);
+router.put("/colleges/:id", updateCollege);
 
 // Courses
 router.get("/courses", getCourses);
@@ -31,4 +34,8 @@ router.post("/cutoffs", createCutoff);
 // Bulk upload
 router.post("/bulk-upload", bulkUpload);
 
+
+// Exams
+router.get("/exams", getExams);
+router.post("/exams", createExam);
 export default router;
