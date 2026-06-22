@@ -3,7 +3,7 @@ import authRoutes from './auth.routes';
 import studentRoutes from './student.routes';
 import healthRoutes from './health.routes';
 import collegeRoutes from './college.routes';
-
+import phoneRouter from "./phone.routes";
 const router = Router();
 
 // Health check route
@@ -17,6 +17,8 @@ router.use('/student', studentRoutes);
 
 // College routes
 router.use('/colleges', collegeRoutes);
+
+router.use("/phone", phoneRouter);
 
 router.get('/', (_req, res) => {
   res.status(200).json({

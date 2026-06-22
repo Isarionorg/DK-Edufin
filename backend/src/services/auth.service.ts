@@ -414,6 +414,7 @@ export const getUserById = async (userId: string) => {
       full_name: true,
       phone: true,
       is_email_verified: true,
+      phone_verified: true,
       created_at: true,
       updated_at: true,
       user_profiles: {

@@ -10,7 +10,7 @@ interface BulkRow {
   isPartner: string;
   courseName: string;
   degreeType: string;
-  eligibleStreams: string; // pipe-separated, e.g. "PCM|PCB"
+  eligibleStreams: string;
   exam: string;
   category: string;
   cutoffScore?: string;
@@ -19,6 +19,11 @@ interface BulkRow {
   roundNumber: string;
   rowIndex: number;
 }
+
+const STREAM_ALIASES: Record<string, string> = {
+  arts: "humanities",
+  art: "humanities",
+};
 
 function generateCourseCode(name: string): string {
   return name
@@ -41,19 +46,28 @@ export async function bulkUpload(req: Request, res: Response) {
       return res.status(400).json({ success: false, message: "No rows provided" });
     }
 
-    // ── Pre-load lookup tables ────────────────────────────────────────────────
-    const [allStreams, allCategories, allExams] = await Promise.all([
-      prisma.eligible_streams.findMany(),
-      prisma.categories.findMany(),
-      prisma.exams.findMany(),
-    ]);
+    // ── Pre-load ALL lookup tables including colleges and courses ─────────────
+    const [allStreams, allCategories, allExams, allColleges, allCourses, allCollegeCourses] =
+      await Promise.all([
+        prisma.eligible_streams.findMany(),
+        prisma.categories.findMany(),
+        prisma.exams.findMany(),
+        prisma.colleges.findMany(),
+        prisma.courses.findMany(),
+        prisma.college_courses.findMany(),
+      ]);
 
-    const streamByCode = new Map(allStreams.map((s) => [s.stream_code, s]));
+    // Build lookup maps
+    const streamByCode = new Map(allStreams.map((s) => [s.stream_code.toLowerCase(), s]));
     const categoryByCode = new Map(allCategories.map((c) => [c.category_code, c]));
-    const examByName = new Map(allExams.map((e) => [e.exam_name, e]));
-
-    // Track in-flight inserts so we don't double-create within the same batch
-    const courseCodeCache = new Map<string, string>(); // courseName → resolved course_code
+    const examByName = new Map(allExams.map((e) => [e.exam_name.toLowerCase(), e]));
+    const collegeByName = new Map(allColleges.map((c) => [c.college_name.trim().toLowerCase(), c]));
+    const courseByName = new Map(allCourses.map((c) => [c.course_name.trim().toLowerCase(), c]));
+    const courseByCode = new Map(allCourses.map((c) => [c.course_code, c]));
+    // college_course link map: "collegeId_courseId" → record
+    const linkMap = new Map(
+      allCollegeCourses.map((cc) => [`${cc.college_id}_${cc.course_id}`, cc])
+    );
 
     const results = {
       processed: 0,
@@ -64,98 +78,85 @@ export async function bulkUpload(req: Request, res: Response) {
       errors: [] as { rowIndex: number; message: string }[],
     };
 
-    // ── Process each row sequentially (to avoid race conditions) ─────────────
     for (const row of rows) {
       try {
         // 1. Resolve / create College
-        const college = await prisma.colleges.upsert({
-          where: { college_name: row.collegeName.trim() },
-          update: {},
-          create: {
-            college_name: row.collegeName.trim(),
-            college_type: row.collegeType,
-            city: row.city.trim(),
-            state: row.state.trim(),
-            website_url: row.website?.trim() || null,
-            is_partner: parseIsPartner(row.isPartner),
-          },
-        });
+        const collegeKey = row.collegeName.trim().toLowerCase();
+        let college = collegeByName.get(collegeKey);
 
-        const wasCollegeCreated = college.created_at && 
-          (new Date().getTime() - new Date(college.created_at).getTime()) < 5000;
-        if (wasCollegeCreated) results.colleges.created++;
-        else results.colleges.existing++;
-
-        // 2. Resolve / create Course
-        const courseName = row.courseName.trim();
-        let courseCode = courseCodeCache.get(courseName);
-
-        if (!courseCode) {
-          // Check if course already exists by name
-          const existingCourse = await prisma.courses.findFirst({
-            where: { course_name: courseName },
+        if (!college) {
+          college = await prisma.colleges.create({
+            data: {
+              college_name: row.collegeName.trim(),
+              college_type: row.collegeType,
+              city: row.city.trim(),
+              state: row.state.trim(),
+              website_url: row.website?.trim() || null,
+              is_partner: parseIsPartner(row.isPartner),
+            },
           });
-
-          if (existingCourse) {
-            courseCode = existingCourse.course_code;
-            courseCodeCache.set(courseName, courseCode);
-            results.courses.existing++;
-          } else {
-            // Generate unique code
-            let baseCode = generateCourseCode(courseName);
-            courseCode = baseCode;
-            let suffix = 1;
-            while (await prisma.courses.findUnique({ where: { course_code: courseCode } })) {
-              courseCode = `${baseCode}_${suffix++}`;
-            }
-            courseCodeCache.set(courseName, courseCode);
-          }
+          collegeByName.set(collegeKey, college);
+          results.colleges.created++;
         } else {
-          // Already created earlier in this batch
+          results.colleges.existing++;
         }
 
-        const course = await prisma.courses.upsert({
-          where: { course_code: courseCode },
-          update: {},
-          create: {
-            course_name: courseName,
-            course_code: courseCode,
-            degree_type: row.degreeType,
-          },
-        });
+        // 2. Resolve / create Course
+        const courseKey = row.courseName.trim().toLowerCase();
+        let course = courseByName.get(courseKey);
 
-        // 2a. Ensure eligible streams are linked to the course
-        const streamCodes = row.eligibleStreams.split("|").map((s) => s.trim()).filter(Boolean);
+        if (!course) {
+          let courseCode = generateCourseCode(row.courseName.trim());
+          // Handle code collision without DB round trips
+          let suffix = 1;
+          while (courseByCode.has(courseCode)) {
+            courseCode = `${generateCourseCode(row.courseName.trim())}_${suffix++}`;
+          }
+          course = await prisma.courses.create({
+            data: {
+              course_name: row.courseName.trim(),
+              course_code: courseCode,
+              degree_type: row.degreeType,
+            },
+          });
+          courseByName.set(courseKey, course);
+          courseByCode.set(courseCode, course);
+          results.courses.created++;
+        } else {
+          results.courses.existing++;
+        }
+
+        // 2a. Eligible streams — batch check in memory
+        const streamCodes = row.eligibleStreams
+          .split("|")
+          .map((s) => {
+            const normalized = s.trim().toLowerCase();
+            return STREAM_ALIASES[normalized] ?? normalized;
+          })
+          .filter(Boolean);
+
         for (const code of streamCodes) {
           const stream = streamByCode.get(code);
           if (stream) {
-            const existingCourseStream = await prisma.course_eligible_streams.findFirst({
-              where: { course_id: course.course_id, stream_id: stream.stream_id },
+            // Only query DB if not already known — use a simple set per course
+            await prisma.course_eligible_streams.upsert({
+              where: {
+                course_id_stream_id: {
+                  course_id: course.course_id,
+                  stream_id: stream.stream_id,
+                },
+              },
+              update: {},
+              create: { course_id: course.course_id, stream_id: stream.stream_id },
             });
-            if (!existingCourseStream) {
-              await prisma.course_eligible_streams.create({
-                data: { course_id: course.course_id, stream_id: stream.stream_id },
-              });
-            }
           }
         }
 
         // 3. Resolve / create College-Course link
-        // The unique constraint is (college_id, course_id, specialization_id)
-        // specialization_id is null for our use case, but Prisma needs a workaround for null in composite unique
-        const existingLink = await prisma.college_courses.findFirst({
-          where: {
-            college_id: college.college_id,
-            course_id: course.course_id,
-            specialization_id: null,
-          },
-        });
+        const linkKey = `${college.college_id}_${course.course_id}`;
+        let collegeCourse = linkMap.get(linkKey);
 
-        let collegeCourse;
-        if (existingLink) {
-          collegeCourse = existingLink;
-          results.links.existing++;
-        } else {
+        if (!collegeCourse) {
           collegeCourse = await prisma.college_courses.create({
             data: {
               college_id: college.college_id,
@@ -163,11 +164,14 @@ export async function bulkUpload(req: Request, res: Response) {
               is_available: true,
             },
           });
+          linkMap.set(linkKey, collegeCourse);
           results.links.created++;
+        } else {
+          results.links.existing++;
         }
 
         // 4. Resolve exam and category
-        const exam = examByName.get(row.exam);
+        const exam = examByName.get(row.exam.toLowerCase());
         const category = categoryByCode.get(row.category);
 
         if (!exam) {
@@ -217,11 +221,19 @@ export async function bulkUpload(req: Request, res: Response) {
           results.cutoffs.created++;
         }
 
-        // 5a. Ensure exam eligibility
+        // 5a. Exam eligibility
         await prisma.college_course_exam_eligibility.upsert({
-          where: { college_course_id_exam_id: { college_course_id: collegeCourse.college_course_id, exam_id: exam.exam_id } },
+          where: {
+            college_course_id_exam_id: {
+              college_course_id: collegeCourse.college_course_id,
+              exam_id: exam.exam_id,
+            },
+          },
           update: {},
-          create: { college_course_id: collegeCourse.college_course_id, exam_id: exam.exam_id },
+          create: {
+            college_course_id: collegeCourse.college_course_id,
+            exam_id: exam.exam_id,
+          },
         });
 
         results.processed++;

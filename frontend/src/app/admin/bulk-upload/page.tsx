@@ -1,13 +1,14 @@
 "use client";
 
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import AdminHeader from "@/components/admin/AdminHeader";
 import { ParsedRow } from "@/types/admin";
 import {
   Upload, FileSpreadsheet, Download, CheckCircle2, XCircle,
   AlertTriangle, X, ChevronDown, ChevronUp, Info, Loader2,
 } from "lucide-react";
-import { bulkUpload as apiBulkUpload, BulkUploadResult } from "@/lib/adminapi";
+import { bulkUpload as apiBulkUpload, BulkUploadResult, fetchExams } from "@/lib/adminapi";
+
 
 const REQUIRED_COLUMNS = [
   "collegeName","collegeType","city","state","isPartner",
@@ -16,8 +17,7 @@ const REQUIRED_COLUMNS = [
 
 const VALID_COLLEGE_TYPES = ["Government", "Private", "Deemed"];
 const VALID_DEGREE_TYPES = ["UG", "PG", "Diploma"];
-const VALID_STREAMS = ["PCM", "PCB", "COMMERCE", "HUMANITIES", "ANY"];
-const VALID_EXAMS = ["CUET", "JEE_MAIN", "JEE_ADVANCED", "MHT_CET", "KCET", "WBJEE", "Other"];
+const VALID_STREAMS = ["pcm", "pcb", "commerce", "humanities", "any"];
 const VALID_CATEGORIES = ["UR", "OBC", "SC", "ST", "EWS", "PwBD"];
 
 const TEMPLATE_HEADERS = [
@@ -30,7 +30,7 @@ const TEMPLATE_SAMPLE = [
   "B.Sc (Hons.) Mathematics","UG","PCM|PCB","CUET","UR","680","","2025","1",
 ];
 
-function validateRow(row: Record<string, string>, index: number): ParsedRow {
+function validateRow(row: Record<string, string>, index: number, validExams: string[]): ParsedRow {
   const errors: string[] = [];
   const get = (key: string) => {
   const value = row[key];
@@ -53,13 +53,21 @@ function validateRow(row: Record<string, string>, index: number): ParsedRow {
   if (!VALID_DEGREE_TYPES.includes(get("degreeType")))
     errors.push(`degreeType must be one of: ${VALID_DEGREE_TYPES.join(", ")}`);
 
-  const streams = get("eligibleStreams").split("|").map((s) => s.trim());
-  const invalidStreams = streams.filter((s) => !VALID_STREAMS.includes(s));
+  const STREAM_ALIASES: Record<string, string> = { arts: "humanities", art: "humanities" };
+
+const streams = get("eligibleStreams")
+  .split("|")
+  .map((s) => {
+    const normalized = s.trim().toLowerCase();
+    return STREAM_ALIASES[normalized] ?? normalized;
+  });
+const invalidStreams = streams.filter((s) => !VALID_STREAMS.includes(s));
   if (invalidStreams.length > 0)
     errors.push(`Invalid streams: ${invalidStreams.join(", ")}`);
 
-  if (!VALID_EXAMS.includes(get("exam")))
-    errors.push(`exam must be one of: ${VALID_EXAMS.join(", ")}`);
+  if (!validExams.map(e => e.toLowerCase()).includes(get("exam").toLowerCase()))
+  errors.push(`exam must be one of: ${validExams.join(", ")}`);
+
   if (!VALID_CATEGORIES.includes(get("category")))
     errors.push(`category must be one of: ${VALID_CATEGORIES.join(", ")}`);
 
@@ -125,30 +133,38 @@ export default function BulkUploadPage() {
   const [importing, setImporting] = useState(false);
   const [result, setResult] = useState<BulkUploadResult | null>(null);
   const [importError, setImportError] = useState<string | null>(null);
+  const [importProgress, setImportProgress] = useState<number>(0);
   const [expandedErrors, setExpandedErrors] = useState<Set<number>>(new Set());
+  const [validExams, setValidExams] = useState<string[]>([]);
+
+// 
   const fileRef = useRef<HTMLInputElement>(null);
 
   const validRows = parsedRows.filter((r) => r.isValid);
   const invalidRows = parsedRows.filter((r) => !r.isValid);
 
-  const processFile = useCallback((file: File) => {
-    if (!file) return;
-    const isCSV = file.name.endsWith(".csv");
-    const isExcel = file.name.endsWith(".xlsx") || file.name.endsWith(".xls");
-    if (!isCSV && !isExcel) { alert("Only .csv or .xlsx/.xls files are supported."); return; }
+  const processFile = useCallback(async (file: File) => {
+  if (!file) return;
+  const isCSV = file.name.endsWith(".csv");
+  const isExcel = file.name.endsWith(".xlsx") || file.name.endsWith(".xls");
+  if (!isCSV && !isExcel) { alert("Only .csv or .xlsx/.xls files are supported."); return; }
 
-    setFileName(file.name);
-    setParsing(true);
-    setParsedRows([]);
-    setResult(null);
-    setImportError(null);
+  setFileName(file.name);
+  setParsing(true);
+  setParsedRows([]);
+  setResult(null);
+  setImportError(null);
+
+  const exams = await fetchExams();
+  const examNames = exams.map((e) => e.exam_name);
+  setValidExams(examNames);
 
     if (isCSV) {
       const reader = new FileReader();
       reader.onload = (e) => {
         const text = e.target?.result as string;
         const rawRows = parseCSV(text);
-        setParsedRows(rawRows.map((r, i) => validateRow(r, i + 2)));
+        setParsedRows(rawRows.map((r, i) => validateRow(r, i + 2, examNames)));
         setParsing(false);
       };
       reader.readAsText(file);
@@ -160,7 +176,7 @@ export default function BulkUploadPage() {
           const wb = XLSX.read(data, { type: "array" });
           const sheet = wb.Sheets[wb.SheetNames[0]];
           const json: Record<string, string>[] = XLSX.utils.sheet_to_json(sheet, { defval: "" });
-          setParsedRows(json.map((r, i) => validateRow(r, i + 2)));
+          setParsedRows(json.map((r, i) => validateRow(r, i + 2, examNames)));
           setParsing(false);
         };
         reader.readAsArrayBuffer(file);
@@ -192,24 +208,41 @@ export default function BulkUploadPage() {
   };
 
   const handleCommit = async () => {
-    setImporting(true);
-    setImportError(null);
-    try {
-      const res = await apiBulkUpload(validRows);
+  setImporting(true);
+  setImportError(null);
+  setImportProgress(0);
+
+  // Simulate row-by-row progress before actual upload
+  const total = validRows.length;
+  let current = 0;
+  const interval = setInterval(() => {
+    current += 1;
+    setImportProgress(Math.min(current, total - 1)); // stop at total-1, jump to total on success
+    if (current >= total - 1) clearInterval(interval);
+  }, Math.min(800, (total * 600) / total)); // scale speed to row count
+
+  try {
+    const res = await apiBulkUpload(validRows);
+    clearInterval(interval);
+    setImportProgress(total); // 100%
+    setTimeout(() => {
       setResult(res);
       setParsedRows([]);
-    } catch (err: any) {
-      setImportError(err.message);
-    } finally {
-      setImporting(false);
-    }
-  };
+    }, 400); // brief pause so user sees 100%
+  } catch (err: any) {
+    clearInterval(interval);
+    setImportError(err.message);
+  } finally {
+    setImporting(false);
+  }
+};
 
   const handleReset = () => {
-    setParsedRows([]);
-    setFileName("");
-    setResult(null);
-    setImportError(null);
+  setParsedRows([]);
+  setFileName("");
+  setResult(null);
+  setImportError(null);
+  setImportProgress(0);
     if (fileRef.current) fileRef.current.value = "";
   };
 
@@ -434,19 +467,45 @@ export default function BulkUploadPage() {
             )}
 
             {/* Commit */}
-            <div className="flex items-center gap-3">
-              <button
-                onClick={handleCommit}
-                disabled={validRows.length === 0 || importing}
-                className="flex items-center gap-2 px-6 py-2.5 bg-[#2563EB] hover:bg-[#1D4ED8] disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-semibold rounded-xl transition-colors shadow-sm"
-              >
-                {importing && <Loader2 size={15} className="animate-spin" />}
-                Import {validRows.length} Valid Row{validRows.length !== 1 ? "s" : ""} to Database
-              </button>
-              <button onClick={handleReset} className="px-6 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-semibold rounded-xl transition-colors">
-                Upload Different File
-              </button>
-            </div>
+            <div className="space-y-3">
+  {importing && (
+    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 space-y-2">
+      <div className="flex items-center justify-between text-sm">
+        <span className="font-medium text-gray-700 flex items-center gap-2">
+          <Loader2 size={14} className="animate-spin text-[#2563EB]" />
+          Uploading rows to database…
+        </span>
+        <span className="text-[#2563EB] font-semibold">
+          {importProgress} / {validRows.length}
+        </span>
+      </div>
+      <div className="w-full bg-gray-100 rounded-full h-2 overflow-hidden">
+        <div
+          className="bg-[#2563EB] h-2 rounded-full transition-all duration-300"
+          style={{ width: `${(importProgress / validRows.length) * 100}%` }}
+        />
+      </div>
+      <p className="text-xs text-gray-400">Please don't close this tab</p>
+    </div>
+  )}
+  <div className="flex items-center gap-3">
+    <button
+      onClick={handleCommit}
+      disabled={validRows.length === 0 || importing}
+      className="flex items-center gap-2 px-6 py-2.5 bg-[#2563EB] hover:bg-[#1D4ED8] disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-semibold rounded-xl transition-colors shadow-sm"
+    >
+      {importing && <Loader2 size={15} className="animate-spin" />}
+      Import {validRows.length} Valid Row{validRows.length !== 1 ? "s" : ""} to Database
+    </button>
+    <button
+      onClick={handleReset}
+      disabled={importing}
+      className="px-6 py-2.5 bg-gray-100 hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed text-gray-700 text-sm font-semibold rounded-xl transition-colors"
+    >
+      Upload Different File
+    </button>
+  </div>
+</div>
           </div>
         )}
 

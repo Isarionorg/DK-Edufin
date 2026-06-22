@@ -57,6 +57,7 @@
     "razorpay": "^2.9.2",
     "redis": "^4.6.12",
     "resend": "^3.5.0",
+    "twilio": "^6.0.2",
     "typescript": "^5.9.3"
   },
   "devDependencies": {

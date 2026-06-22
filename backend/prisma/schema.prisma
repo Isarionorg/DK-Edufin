@@ -57,6 +57,7 @@ model colleges {
   is_partner       Boolean?          @default(false)
   created_at       DateTime?         @default(now()) @db.Timestamp(6)
   updated_at       DateTime?         @default(now()) @db.Timestamp(6)
+  naac_grade       String?           @db.VarChar(3)
   college_courses  college_courses[]
 }
 
@@ -181,6 +182,7 @@ model users {
   is_email_verified       Boolean?                  @default(false)
   created_at              DateTime?                 @default(now()) @db.Timestamp(6)
   updated_at              DateTime?                 @default(now()) @db.Timestamp(6)
+  phone_verified          Boolean?                  @default(false)
   otp_verification        otp_verification[]
   user_course_preferences user_course_preferences[]
   user_exam_scores        user_exam_scores[]
