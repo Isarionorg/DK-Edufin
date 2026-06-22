@@ -1,15 +1,39 @@
 // app/student-form/page.tsx
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Button from "@/components/ui/Button";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import StudentForm from "@/components/auth/StudentForm";
+import axios from "@/lib/axios";
 
 function StudentFormContent() {
   const router = useRouter();
   const [submitted, setSubmitted] = useState(false);
+
+  // OTP gate — fetched once on mount
+  const [phoneVerified, setPhoneVerified] = useState(false);
+  const [existingPhone, setExistingPhone] = useState("");
+  const [loadingUser, setLoadingUser] = useState(true);
+
+  useEffect(() => {
+    const fetchUserPhone = async () => {
+      try {
+        const res = await axios.get("/auth/me");
+const user = res.data.data;
+        if (user?.phone_verified) {
+          setPhoneVerified(true);
+          setExistingPhone(user.phone ?? "");
+        }
+      } catch {
+        // Not yet profiled or not logged in — leave defaults (false, "")
+      } finally {
+        setLoadingUser(false);
+      }
+    };
+    fetchUserPhone();
+  }, []);
 
   const handleSuccess = () => {
     setSubmitted(true);
@@ -53,11 +77,19 @@ function StudentFormContent() {
             recommendations
           </p>
 
-          <StudentForm
-            onSuccess={handleSuccess}
-            onCancel={() => router.back()}
-            isModal={false}
-          />
+          {loadingUser ? (
+            <div className="flex items-center justify-center py-12 text-gray-400 text-sm">
+              Loading…
+            </div>
+          ) : (
+            <StudentForm
+              onSuccess={handleSuccess}
+              onCancel={() => router.back()}
+              isModal={false}
+              isPhoneVerified={phoneVerified}
+              existingPhone={existingPhone}
+            />
+          )}
         </div>
       </div>
     </main>

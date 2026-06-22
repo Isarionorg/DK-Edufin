@@ -7,7 +7,7 @@ import { createCollegeCourse, getCollegeCourses } from "../controllers/admin/col
 import { createCutoff, getCutoffs } from "../controllers/admin/cutoffs.controller";
 import { bulkUpload } from "../controllers/admin/bulkupload.controller";
 import { createExam, getExams } from "../controllers/admin/exam.controller";
-import { createCollege, getColleges, updateCollege } from "../controllers/admin/colleges.controller";
+import { createCollege, getColleges, updateCollege, deleteCollege } from "../controllers/admin/colleges.controller";
 
 const router = Router();
 
@@ -18,6 +18,7 @@ router.get("/stats", getStats);
 router.get("/colleges", getColleges);
 router.post("/colleges", createCollege);
 router.put("/colleges/:id", updateCollege);
+router.delete("/colleges/:id", deleteCollege);
 
 // Courses
 router.get("/courses", getCourses);

@@ -54,6 +54,19 @@ const validateStreamId = async (
   return !!stream;
 };
 
+//phone number validation 
+export interface StudentProfileDTO {
+  date_of_birth?: string;
+  gender?: string;
+  category_id: number;
+  stream_id: number;
+  phone: string;          // NEW — mandatory
+}
+const validatePhone = (phone: string): boolean => {
+  // Indian 10-digit mobile number, optionally with +91 prefix
+  return /^(\+91)?[6-9]\d{9}$/.test(phone.trim());
+};
+
 // const validateStream = (stream: string) =>
 //   ['Science', 'Commerce', 'Arts'].includes(stream);
 
@@ -130,9 +143,19 @@ export const completeStudentForm = async (
     where: { user_id: userId }
   });
 
+  if (!data.profile.phone || !validatePhone(data.profile.phone)) {
+  throw new Error('Invalid or missing phone number');
+}
+
   if (!user) throw new Error('User not found');
 
   const result = await prisma.$transaction(async (tx) => {
+  await tx.users.update({
+    where: { user_id: userId },
+    data: { phone: data.profile.phone.trim() },
+    
+    
+  });
     const profile = await tx.user_profiles.upsert({
       where: { user_id: userId },
       create: {
@@ -183,7 +206,14 @@ export const completeStudentForm = async (
     });
 
     return profile;
+
+    
+  },
+{
+    timeout: 15000,
+    maxWait: 5000,
   });
+  
 
   return {
     message: 'Profile completed successfully',
@@ -196,7 +226,7 @@ export const completeStudentForm = async (
 // ============================================
 
 export const getStudentProfile = async (userId: string) => {
-  console.log("PRISMA MODELS:", Object.keys(prisma));
+  
 
   const user = await prisma.users.findUnique({
     where: { user_id: userId }
@@ -254,17 +284,24 @@ export const updateStudentProfile = async (
   userId: string,
   data: Partial<StudentProfileDTO>
 ) => {
+  if (data.phone !== undefined && !validatePhone(data.phone)) {
+    throw new Error('Invalid phone number');
+  }
+
+  if (data.phone) {
+    await prisma.users.update({
+      where: { user_id: userId },
+      data: { phone: data.phone.trim() }
+    });
+  }
+
   const profile = await prisma.user_profiles.update({
     where: { user_id: userId },
     data: {
-      ...(data.date_of_birth && {
-        date_of_birth: new Date(data.date_of_birth)
-      }),
+      ...(data.date_of_birth && { date_of_birth: new Date(data.date_of_birth) }),
       ...(data.gender && { gender: data.gender }),
       ...(data.category_id && { category_id: data.category_id }),
-      ...(data.stream_id && {
-        stream_id: data.stream_id
-      })
+      ...(data.stream_id && { stream_id: data.stream_id })
     }
   });
 

@@ -5,7 +5,7 @@ import AdminHeader from "@/components/admin/AdminHeader";
 import { Plus, CheckCircle2, Loader2, AlertCircle } from "lucide-react";
 import { fetchExams, createExam as apiCreateExam, ApiExam } from "@/lib/adminapi";
 
-const QUALIFICATION_TYPES = ["score", "rank"];
+const QUALIFICATION_TYPES = ["score", "rank", "percentile", "grade", "marks",];
 
 const emptyForm = {
   examName: "",

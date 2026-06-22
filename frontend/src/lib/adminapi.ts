@@ -42,6 +42,7 @@ export interface ApiCollege {
   state: string | null;
   website_url: string | null;
   is_partner: boolean | null;
+  naac_grade: string | null;
   created_at: string | null;
 }
 
@@ -58,6 +59,7 @@ export async function createCollege(payload: {
   state: string;
   website?: string;
   isPartner: boolean;
+  naacGrade?: string;
 }): Promise<ApiCollege> {
   const res = await apiFetch<ApiCollege>("/admin/colleges", {
     method: "POST",
@@ -234,4 +236,11 @@ export async function updateCollege(
   });
   if (!res.success || !res.data) throw new Error(res.message ?? "Failed to update college");
   return res.data;
+}
+
+export async function deleteCollege(id: number): Promise<void> {
+  const res = await apiFetch<null>(`/admin/colleges/${id}`, {
+    method: "DELETE",
+  });
+  if (!res.success) throw new Error(res.message ?? "Failed to delete college");
 }
