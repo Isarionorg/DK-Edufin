@@ -4,7 +4,8 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Button from "@/components/ui/Button";
-import axiosInstance from "@/lib/axios"
+import axiosInstance from "@/lib/axios";
+import { useAuth } from "@/hooks/useAuth"; // 1. Import hook
 
 interface LoginFormProps {
   onSwitch: () => void;
@@ -12,6 +13,7 @@ interface LoginFormProps {
 
 export default function LoginForm({ onSwitch }: LoginFormProps) {
   const router = useRouter();
+  const { login } = useAuth(); // 2. Grab the login helper
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -34,12 +36,19 @@ export default function LoginForm({ onSwitch }: LoginFormProps) {
       });
 
       if (response.data.success) {
-        // Store token if provided
-        if (response.data.data.token) {
-          localStorage.setItem("token", response.data.data.token);
+        const token = response.data.data.token;
+        
+        if (token) {
+          // 3. Fire the hook login update. This updates your state reactively!
+          const loginSuccess = await login(token);
+          
+          if (loginSuccess) {
+            router.push("/colleges");
+            router.refresh(); // Clears any Next.js layout caching layers
+          } else {
+            setError("Could not retrieve your user profile. Please try again.");
+          }
         }
-        // Redirect to dashboard or home
-        router.push("/colleges");
       } else {
         setError(response.data.message || "Login failed. Please try again.");
       }

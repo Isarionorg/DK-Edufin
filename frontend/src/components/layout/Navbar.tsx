@@ -29,17 +29,12 @@ export default function Navbar() {
   }, []);
 
   // Async handling for logout to prevent race conditions
-  const handleLogout = async () => {
-    setMenuOpen(false);
-    setDropdownOpen(false);
-    try {
-      await logout(); // Await if your logout clear tokens asynchronously
-      router.push("/");
-      router.refresh(); // Forces Next.js to clear server-component caches & re-fetch current layout
-    } catch (error) {
-      console.error("Logout failed:", error);
-    }
-  };
+  const handleLogout = () => {
+  setMenuOpen(false);
+  setDropdownOpen(false);
+  logout(); // clears state + localStorage
+  router.push("/");
+};
 
   const getInitials = () => {
     if (user?.name) {
