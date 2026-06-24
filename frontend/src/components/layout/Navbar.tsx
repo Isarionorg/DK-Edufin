@@ -87,7 +87,11 @@ export default function Navbar() {
               Student Form
             </Link>
 
-            {isAuthenticated ? (
+            {/* Desktop Auth Section */}
+            {loading ? (
+              // Pulse skeleton while authentication state is loading
+              <div className="w-10 h-10 rounded-full bg-gray-200 animate-pulse" />
+            ) : isAuthenticated ? (
               <div className="relative" ref={dropdownRef}>
                 {/* Profile Avatar Button */}
                 <button
@@ -189,7 +193,10 @@ export default function Navbar() {
               Contact Us
             </Link>
 
-            {isAuthenticated ? (
+            {/* Mobile Auth Section */}
+            {loading ? (
+              <div className="h-9 w-24 bg-gray-200 animate-pulse rounded-md" />
+            ) : isAuthenticated ? (
               <>
                 <div className="flex items-center gap-3 py-2 border-t border-blue-100">
                   <div className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center text-white font-bold text-sm">
