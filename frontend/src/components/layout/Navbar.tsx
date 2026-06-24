@@ -28,11 +28,17 @@ export default function Navbar() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const handleLogout = () => {
-    logout();
+  // Async handling for logout to prevent race conditions
+  const handleLogout = async () => {
     setMenuOpen(false);
     setDropdownOpen(false);
-    router.push("/");
+    try {
+      await logout(); // Await if your logout clear tokens asynchronously
+      router.push("/");
+      router.refresh(); // Forces Next.js to clear server-component caches & re-fetch current layout
+    } catch (error) {
+      console.error("Logout failed:", error);
+    }
   };
 
   const getInitials = () => {
@@ -89,11 +95,9 @@ export default function Navbar() {
 
             {/* Desktop Auth Section */}
             {loading ? (
-              // Pulse skeleton while authentication state is loading
               <div className="w-10 h-10 rounded-full bg-gray-200 animate-pulse" />
             ) : isAuthenticated ? (
               <div className="relative" ref={dropdownRef}>
-                {/* Profile Avatar Button */}
                 <button
                   onClick={() => setDropdownOpen(!dropdownOpen)}
                   className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center text-white font-bold text-sm shadow-md hover:shadow-lg transition-all duration-200 hover:scale-105 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-2"
@@ -101,10 +105,8 @@ export default function Navbar() {
                   {getInitials()}
                 </button>
 
-                {/* Dropdown Menu */}
                 {dropdownOpen && (
                   <div className="absolute right-0 mt-2 w-52 bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden z-50">
-                    {/* User Info */}
                     <div className="px-4 py-3 bg-blue-50 border-b border-blue-100">
                       <p className="text-xs text-gray-400 font-medium">Logged in as</p>
                       <p className="text-sm font-semibold text-gray-800 truncate">
@@ -112,7 +114,6 @@ export default function Navbar() {
                       </p>
                     </div>
 
-                    {/* Home */}
                     <button
                       onClick={() => {
                         setDropdownOpen(false);
@@ -124,7 +125,6 @@ export default function Navbar() {
                       <span className="font-medium">Home</span>
                     </button>
 
-                    {/* Logout */}
                     <button
                       onClick={handleLogout}
                       className="w-full flex items-center gap-3 px-4 py-3 text-sm text-red-500 hover:bg-red-50 transition-colors duration-150 border-t border-gray-100"
