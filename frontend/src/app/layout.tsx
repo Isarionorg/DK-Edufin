@@ -1,8 +1,6 @@
-// app/layout.tsx
 import type { Metadata } from "next";
 import "@/styles/globals.css";
-import Navbar from "@/components/layout/Navbar";
-import Footer from "@/components/layout/Footer";
+import ConditionalLayout from "@/components/layout/ConditionalLayout";
 import { AuthProvider } from "@/context/AuthContext";
 
 export const metadata: Metadata = {
@@ -20,10 +18,10 @@ export default function RootLayout({
     <html lang="en">
       <body className="antialiased">
         <AuthProvider>
-        <Navbar />
-        {children}
+          <ConditionalLayout>
+            {children}
+          </ConditionalLayout>
         </AuthProvider>
-        <Footer />
       </body>
     </html>
   );

@@ -38,10 +38,10 @@ export default function AdminHeader({ title, subtitle }: AdminHeaderProps) {
           </Link>
         )}
 
-        <button className="relative p-2 rounded-xl hover:bg-gray-50 transition-colors">
-          <Bell size={18} className="text-gray-500" />
-          <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-[#2563EB] rounded-full" />
-        </button>
+        {/* <button className="relative p-2 rounded-xl hover:bg-gray-50 transition-colors">
+          {/* <Bell size={18} className="text-gray-500" /> */}
+          {/* <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-[#2563EB] rounded-full" />
+        </button> */} 
 
         {/* ← replace the Exit Panel link with this button */}
         <button
