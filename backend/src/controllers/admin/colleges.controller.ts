@@ -1,10 +1,9 @@
-// college.admin.controller.ts — full rewrite
-
 import { Request, Response } from "express";
+import { Prisma } from "@prisma/client";
 import { prisma } from "../../lib/prisma";
 
 const VALID_TYPES = ["Government", "Private", "Deemed"];
-const VALID_NAAC  = ["A+", "A", "B+", "B", "C", ""];   // "" = not accredited / clear it
+const VALID_NAAC  = ["A+", "A", "B+", "B", "C", ""];
 
 export async function getColleges(req: Request, res: Response) {
   try {
@@ -41,7 +40,7 @@ export async function createCollege(req: Request, res: Response) {
       return res.status(400).json({ success: false, message: `College type must be one of: ${VALID_TYPES.join(", ")}` });
 
     if (naacGrade && !VALID_NAAC.includes(naacGrade))
-      return res.status(400).json({ success: false, message: `NAAC grade must be one of: A+, A, B+, B, C` });
+      return res.status(400).json({ success: false, message: "NAAC grade must be one of: A+, A, B+, B, C" });
 
     const college = await prisma.colleges.create({
       data: {
@@ -56,9 +55,9 @@ export async function createCollege(req: Request, res: Response) {
     });
 
     return res.status(201).json({ success: true, data: college });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("[createCollege]", error);
-    if (error.code === "P2002")
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002")
       return res.status(409).json({ success: false, message: "A college with this name already exists" });
     return res.status(500).json({ success: false, message: "Failed to create college" });
   }
@@ -67,18 +66,20 @@ export async function createCollege(req: Request, res: Response) {
 export async function updateCollege(req: Request, res: Response) {
   try {
     const collegeId = Number(req.params.id);
-    if (!collegeId) return res.status(400).json({ success: false, message: "Invalid college id" });
+    // ── Explicit NaN check instead of relying on !collegeId falsy coercion ──
+    if (isNaN(collegeId) || collegeId <= 0)
+      return res.status(400).json({ success: false, message: "Invalid college id" });
 
     const { name, type, city, state, website, isPartner, naacGrade } = req.body;
 
     const existing = await prisma.colleges.findUnique({ where: { college_id: collegeId } });
     if (!existing) return res.status(404).json({ success: false, message: "College not found" });
 
-    if (name      !== undefined && !name.trim())  return res.status(400).json({ success: false, message: "College name cannot be empty" });
-    if (city      !== undefined && !city.trim())  return res.status(400).json({ success: false, message: "City cannot be empty" });
-    if (state     !== undefined && !state.trim()) return res.status(400).json({ success: false, message: "State cannot be empty" });
-    if (type      && !VALID_TYPES.includes(type)) return res.status(400).json({ success: false, message: `College type must be one of: ${VALID_TYPES.join(", ")}` });
-    if (naacGrade && !VALID_NAAC.includes(naacGrade)) return res.status(400).json({ success: false, message: `NAAC grade must be one of: A+, A, B+, B, C` });
+    if (name  !== undefined && !name.trim())  return res.status(400).json({ success: false, message: "College name cannot be empty" });
+    if (city  !== undefined && !city.trim())  return res.status(400).json({ success: false, message: "City cannot be empty" });
+    if (state !== undefined && !state.trim()) return res.status(400).json({ success: false, message: "State cannot be empty" });
+    if (type      && !VALID_TYPES.includes(type))     return res.status(400).json({ success: false, message: `College type must be one of: ${VALID_TYPES.join(", ")}` });
+    if (naacGrade && !VALID_NAAC.includes(naacGrade)) return res.status(400).json({ success: false, message: "NAAC grade must be one of: A+, A, B+, B, C" });
 
     const college = await prisma.colleges.update({
       where: { college_id: collegeId },
@@ -89,17 +90,18 @@ export async function updateCollege(req: Request, res: Response) {
         ...(state     !== undefined && { state: state.trim() }),
         ...(website   !== undefined && { website_url: website?.trim() || null }),
         ...(isPartner !== undefined && { is_partner: Boolean(isPartner) }),
-        // naacGrade: explicit null clears it; empty string also clears it
         ...(naacGrade !== undefined && { naac_grade: naacGrade?.trim() || null }),
         updated_at: new Date(),
       },
     });
 
     return res.json({ success: true, data: college });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("[updateCollege]", error);
-    if (error.code === "P2002") return res.status(409).json({ success: false, message: "A college with this name already exists" });
-    if (error.code === "P2025") return res.status(404).json({ success: false, message: "College not found" });
+    if (error instanceof Prisma.PrismaClientKnownRequestError) {
+      if (error.code === "P2002") return res.status(409).json({ success: false, message: "A college with this name already exists" });
+      if (error.code === "P2025") return res.status(404).json({ success: false, message: "College not found" });
+    }
     return res.status(500).json({ success: false, message: "Failed to update college" });
   }
 }
@@ -107,9 +109,9 @@ export async function updateCollege(req: Request, res: Response) {
 export async function deleteCollege(req: Request, res: Response) {
   try {
     const collegeId = Number(req.params.id);
-    if (!collegeId) return res.status(400).json({ success: false, message: "Invalid college id" });
+    if (isNaN(collegeId) || collegeId <= 0)
+      return res.status(400).json({ success: false, message: "Invalid college id" });
 
-    // Guard: prevent deletion if courses are linked — cutoffs would orphan
     const linkedCount = await prisma.college_courses.count({
       where: { college_id: collegeId },
     });
@@ -124,9 +126,10 @@ export async function deleteCollege(req: Request, res: Response) {
     await prisma.colleges.delete({ where: { college_id: collegeId } });
 
     return res.json({ success: true, message: "College deleted successfully" });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("[deleteCollege]", error);
-    if (error.code === "P2025") return res.status(404).json({ success: false, message: "College not found" });
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2025")
+      return res.status(404).json({ success: false, message: "College not found" });
     return res.status(500).json({ success: false, message: "Failed to delete college" });
   }
 }

@@ -1,10 +1,10 @@
 import { Request, Response } from "express";
+import { Prisma } from "@prisma/client";
 import { prisma } from "../../lib/prisma";
 
-/**
- * Generates a course_code slug from a course name.
- * e.g. "B.Sc (Hons.) Mathematics" → "BSC_HONS_MATHEMATICS"
- */
+const VALID_DEGREES = ["UG", "PG", "Diploma"];
+const MAX_CODE_SUFFIX_ATTEMPTS = 10;
+
 function generateCourseCode(name: string): string {
   return name
     .toUpperCase()
@@ -49,15 +49,13 @@ export async function getCourses(req: Request, res: Response) {
 export async function createCourse(req: Request, res: Response) {
   try {
     const { name, degreeType, eligibleStreamCodes } = req.body;
-    // eligibleStreamCodes: string[] — e.g. ["PCM", "PCB"]
 
     if (!name?.trim()) {
       return res.status(400).json({ success: false, message: "Course name is required" });
     }
 
-    const validDegrees = ["UG", "PG", "Diploma"];
-    if (!validDegrees.includes(degreeType)) {
-      return res.status(400).json({ success: false, message: `degreeType must be one of: ${validDegrees.join(", ")}` });
+    if (!VALID_DEGREES.includes(degreeType)) {
+      return res.status(400).json({ success: false, message: `degreeType must be one of: ${VALID_DEGREES.join(", ")}` });
     }
 
     if (!Array.isArray(eligibleStreamCodes) || eligibleStreamCodes.length === 0) {
@@ -75,16 +73,22 @@ export async function createCourse(req: Request, res: Response) {
       return res.status(400).json({ success: false, message: `Unknown stream codes: ${missing.join(", ")}` });
     }
 
-    // Generate a unique course_code
-    let baseCode = generateCourseCode(name.trim());
+    // ── Generate a unique course_code with a bounded retry limit ─────────────
+    const baseCode = generateCourseCode(name.trim());
     let courseCode = baseCode;
     let suffix = 1;
 
-    // Ensure uniqueness by appending a suffix if needed
-    while (true) {
+    while (suffix <= MAX_CODE_SUFFIX_ATTEMPTS) {
       const existing = await prisma.courses.findUnique({ where: { course_code: courseCode } });
       if (!existing) break;
       courseCode = `${baseCode}_${suffix++}`;
+
+      if (suffix > MAX_CODE_SUFFIX_ATTEMPTS) {
+        return res.status(409).json({
+          success: false,
+          message: `Could not generate a unique course code for '${name.trim()}'. Try a more specific name.`,
+        });
+      }
     }
 
     // Create course + eligible streams in a transaction
@@ -109,9 +113,9 @@ export async function createCourse(req: Request, res: Response) {
     });
 
     return res.status(201).json({ success: true, data: { ...course, eligible_stream_codes: foundCodes } });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("[createCourse]", error);
-    if (error.code === "P2002") {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
       return res.status(409).json({ success: false, message: "A course with this name already exists" });
     }
     return res.status(500).json({ success: false, message: "Failed to create course" });

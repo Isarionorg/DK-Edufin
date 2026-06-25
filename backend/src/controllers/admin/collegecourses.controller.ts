@@ -1,4 +1,5 @@
 import { Request, Response } from "express";
+import { Prisma } from "@prisma/client";
 import { prisma } from "../../lib/prisma";
 
 export async function getCollegeCourses(req: Request, res: Response) {
@@ -32,23 +33,28 @@ export async function createCollegeCourse(req: Request, res: Response) {
       return res.status(400).json({ success: false, message: "collegeId and courseId are required" });
     }
 
-    // Verify college exists
-    const college = await prisma.colleges.findUnique({ where: { college_id: Number(collegeId) } });
+    // ── Guard against non-numeric IDs ────────────────────────────────────────
+    const parsedCollegeId = Number(collegeId);
+    const parsedCourseId = Number(courseId);
+
+    if (isNaN(parsedCollegeId) || isNaN(parsedCourseId)) {
+      return res.status(400).json({ success: false, message: "collegeId and courseId must be valid numbers" });
+    }
+
+    const college = await prisma.colleges.findUnique({ where: { college_id: parsedCollegeId } });
     if (!college) {
       return res.status(404).json({ success: false, message: "College not found" });
     }
 
-    // Verify course exists
-    const course = await prisma.courses.findUnique({ where: { course_id: Number(courseId) } });
+    const course = await prisma.courses.findUnique({ where: { course_id: parsedCourseId } });
     if (!course) {
       return res.status(404).json({ success: false, message: "Course not found" });
     }
 
-    // If a link already exists (possibly marked unavailable), re-enable it.
     const existingLink = await prisma.college_courses.findFirst({
       where: {
-        college_id: Number(collegeId),
-        course_id: Number(courseId),
+        college_id: parsedCollegeId,
+        course_id: parsedCourseId,
         specialization_id: null,
       },
     });
@@ -64,8 +70,8 @@ export async function createCollegeCourse(req: Request, res: Response) {
         })
       : await prisma.college_courses.create({
           data: {
-            college_id: Number(collegeId),
-            course_id: Number(courseId),
+            college_id: parsedCollegeId,
+            course_id: parsedCourseId,
             is_available: true,
           },
           include: {
@@ -75,9 +81,9 @@ export async function createCollegeCourse(req: Request, res: Response) {
         });
 
     return res.status(201).json({ success: true, data: link });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("[createCollegeCourse]", error);
-    if (error.code === "P2002") {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
       return res.status(409).json({ success: false, message: "This college-course link already exists" });
     }
     return res.status(500).json({ success: false, message: "Failed to create college-course link" });
