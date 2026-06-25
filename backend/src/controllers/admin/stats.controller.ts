@@ -3,22 +3,24 @@ import { prisma } from "../../lib/prisma";
 
 export async function getStats(req: Request, res: Response) {
   try {
-    const [colleges, courses, collegeCourses, cutoffs] = await Promise.all([
-      prisma.colleges.count(),
-      prisma.courses.count(),
-      prisma.college_courses.count({ where: { is_available: true } }),
-      prisma.cutoff_data.count(),
-    ]);
+    const [colleges, courses, collegeCourses, cutoffs, users] = await Promise.all([
+  prisma.colleges.count(),
+  prisma.courses.count(),
+  prisma.college_courses.count({ where: { is_available: true } }),
+  prisma.cutoff_data.count(),
+  prisma.users.count(),   // ← add
+]);
 
-    return res.json({
-      success: true,
-      data: {
-        colleges,
-        courses,
-        collegeCourses,
-        cutoffs,
-      },
-    });
+return res.json({
+  success: true,
+  data: {
+    colleges,
+    courses,
+    collegeCourses,
+    cutoffs,
+    users,   // ← add
+  },
+});
   } catch (error) {
     console.error("[getStats]", error);
     return res.status(500).json({ success: false, message: "Failed to fetch stats" });

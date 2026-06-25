@@ -13,6 +13,7 @@ const quickActions = [
   { label: "Add Exam", href: "/admin/exams", desc: "Register a new entrance exam", icon: GraduationCap },
   { label: "Add Cutoff Data", href: "/admin/cutoffs", desc: "Enter exam cutoff scores/ranks", icon: BarChart3 },
   { label: "Bulk Upload (CSV/Excel)", href: "/admin/bulk-upload", desc: "Upload data from colleges in bulk", icon: TrendingUp },
+  { label: "View Users", href: "/admin/users", desc: "Browse student profiles and contact info", icon: Users },  // ← add
 ];
 
 export default function AdminDashboard() {
@@ -33,6 +34,7 @@ export default function AdminDashboard() {
     { label: "College-Course Links", value: stats?.collegeCourses ?? 0, icon: Link2, color: "bg-sky-50 text-sky-600", href: "/admin/college-courses" },
     { label: "Cutoff Entries", value: stats?.cutoffs ?? 0, icon: BarChart3, color: "bg-cyan-50 text-cyan-600", href: "/admin/cutoffs" },
     // { label: "Total Exams", value: stats?.exams ?? 0, icon: GraduationCap, color: "bg-violet-50 text-violet-600", href: "/admin/exams" },
+    { label: "Registered Users", value: stats?.users ?? 0, icon: Users, color: "bg-violet-50 text-violet-600", href: "/admin/users" },  // ← add
   ];
 
   return (

@@ -8,9 +8,15 @@ import { createCutoff, getCutoffs } from "../controllers/admin/cutoffs.controlle
 import { bulkUpload } from "../controllers/admin/bulkupload.controller";
 import { createExam, getExams } from "../controllers/admin/exam.controller";
 import { createCollege, getColleges, updateCollege, deleteCollege } from "../controllers/admin/colleges.controller";
-
+import { getUsers } from "../controllers/admin/users.controller";
+import { adminLogin , adminVerify } from "../controllers/admin/auth.controller";
+import { requireAdminAuth } from '../middlewares/adminAuth.middleware';
 const router = Router();
 
+router.post('/auth/login', adminLogin);
+router.get('/auth/verify', adminVerify);
+
+router.use(requireAdminAuth);
 // Stats
 router.get("/stats", getStats);
 
@@ -35,6 +41,8 @@ router.post("/cutoffs", createCutoff);
 // Bulk upload
 router.post("/bulk-upload", bulkUpload);
 
+//userinfo
+router.get('/users', getUsers);
 
 // Exams
 router.get("/exams", getExams);

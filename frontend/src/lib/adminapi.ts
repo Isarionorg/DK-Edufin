@@ -9,10 +9,27 @@ async function apiFetch<T>(
   path: string,
   options?: RequestInit
 ): Promise<{ success: boolean; data?: T; message?: string }> {
+  const token = typeof window !== 'undefined'
+  ? sessionStorage.getItem('dk_admin_token')
+  : null;
+
   const res = await fetch(`${BASE}${path}`, {
-    headers: { "Content-Type": "application/json" },
     ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...(options?.headers ?? {}),
+    },
   });
+
+  if (res.status === 401) {
+  if (typeof window !== 'undefined') {
+    sessionStorage.removeItem('dk_admin_token');
+    window.location.href = '/admin/login';
+  }
+  throw new Error('Unauthorized');
+}
+
   const json = await res.json();
   return json;
 }
@@ -24,6 +41,7 @@ export interface AdminStats {
   courses: number;
   collegeCourses: number;
   cutoffs: number;
+  users: number;
 }
 
 export async function fetchStats(): Promise<AdminStats> {
@@ -244,3 +262,35 @@ export async function deleteCollege(id: number): Promise<void> {
   });
   if (!res.success) throw new Error(res.message ?? "Failed to delete college");
 }
+
+export interface AdminUser {
+  user_id: string;
+  full_name: string | null;
+  email: string;
+  phone: string | null;
+  phone_verified: boolean | null;
+  is_email_verified: boolean | null;
+  created_at: string | null;
+  user_profiles: {
+    gender: string | null;
+    date_of_birth: string | null;
+    is_profile_complete: boolean | null;
+    categories: { category_code: string; category_name: string | null } | null;
+    eligible_streams: { stream_code: string; stream_name: string } | null;
+  } | null;
+  user_exam_scores: {
+    score_value: string | null;
+    rank_value: number | null;
+    year: number;
+    exams: { exam_name: string; qualification_type: string } | null;
+  }[];
+  user_course_preferences: {
+    priority: number | null;
+    courses: { course_name: string; degree_type: string | null } | null;
+  }[];
+}
+
+export const fetchUsers = async (): Promise<AdminUser[]> => {
+  const data = await apiFetch('/admin/users') as { data: AdminUser[] };
+  return data.data;
+};

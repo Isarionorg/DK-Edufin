@@ -10,6 +10,7 @@ import {
   BarChart3,
   Upload,
   ChevronRight,
+  Users,
 } from "lucide-react";
 
 const navItems = [
@@ -19,6 +20,7 @@ const navItems = [
   { label: "College-Course Links", href: "/admin/college-courses", icon: Link2 },
   { label: "Cutoff Data", href: "/admin/cutoffs", icon: BarChart3 },
   { label: "Bulk Upload", href: "/admin/bulk-upload", icon: Upload, badge: "CSV/Excel" },
+  { label: "Users", href: "/admin/users", icon: Users },   // ← add this
 ];
 
 export default function AdminSidebar() {
