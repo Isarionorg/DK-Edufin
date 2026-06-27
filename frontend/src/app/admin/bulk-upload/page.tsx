@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useState, useRef, useCallback } from "react";
 import AdminHeader from "@/components/admin/AdminHeader";
 import { ParsedRow } from "@/types/admin";
 import {
@@ -20,6 +20,10 @@ const VALID_DEGREE_TYPES = ["UG", "PG", "Diploma"];
 const VALID_STREAMS = ["pcm", "pcb", "commerce", "humanities", "any"];
 const VALID_CATEGORIES = ["UR", "OBC", "SC", "ST", "EWS", "PwBD"];
 
+// Security: max file size (5MB) and max rows to prevent DoS / runaway parsing
+const MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024;
+const MAX_ROWS = 5000;
+
 const TEMPLATE_HEADERS = [
   "collegeName","collegeType","city","state","website","isPartner",
   "courseName","degreeType","eligibleStreams","exam","category",
@@ -32,15 +36,7 @@ const TEMPLATE_SAMPLE = [
 
 function validateRow(row: Record<string, string>, index: number, validExams: string[]): ParsedRow {
   const errors: string[] = [];
-  const get = (key: string) => {
-  const value = row[key];
-
-  console.log("COLUMN:", key);
-  console.log("VALUE:", value);
-  console.log("TYPE:", typeof value);
-
-  return String(value ?? "").trim();
-};
+  const get = (key: string) => String(row[key] ?? "").trim();
 
   if (!get("collegeName")) errors.push("collegeName is required");
   if (!VALID_COLLEGE_TYPES.includes(get("collegeType")))
@@ -54,19 +50,18 @@ function validateRow(row: Record<string, string>, index: number, validExams: str
     errors.push(`degreeType must be one of: ${VALID_DEGREE_TYPES.join(", ")}`);
 
   const STREAM_ALIASES: Record<string, string> = { arts: "humanities", art: "humanities" };
-
-const streams = get("eligibleStreams")
-  .split("|")
-  .map((s) => {
-    const normalized = s.trim().toLowerCase();
-    return STREAM_ALIASES[normalized] ?? normalized;
-  });
-const invalidStreams = streams.filter((s) => !VALID_STREAMS.includes(s));
+  const streams = get("eligibleStreams")
+    .split("|")
+    .map((s) => {
+      const normalized = s.trim().toLowerCase();
+      return STREAM_ALIASES[normalized] ?? normalized;
+    });
+  const invalidStreams = streams.filter((s) => !VALID_STREAMS.includes(s));
   if (invalidStreams.length > 0)
     errors.push(`Invalid streams: ${invalidStreams.join(", ")}`);
 
   if (!validExams.map(e => e.toLowerCase()).includes(get("exam").toLowerCase()))
-  errors.push(`exam must be one of: ${validExams.join(", ")}`);
+    errors.push(`exam must be one of: ${validExams.join(", ")}`);
 
   if (!VALID_CATEGORIES.includes(get("category")))
     errors.push(`category must be one of: ${VALID_CATEGORIES.join(", ")}`);
@@ -137,34 +132,86 @@ export default function BulkUploadPage() {
   const [expandedErrors, setExpandedErrors] = useState<Set<number>>(new Set());
   const [validExams, setValidExams] = useState<string[]>([]);
 
-// 
   const fileRef = useRef<HTMLInputElement>(null);
 
   const validRows = parsedRows.filter((r) => r.isValid);
   const invalidRows = parsedRows.filter((r) => !r.isValid);
 
   const processFile = useCallback(async (file: File) => {
-  if (!file) return;
-  const isCSV = file.name.endsWith(".csv");
-  const isExcel = file.name.endsWith(".xlsx") || file.name.endsWith(".xls");
-  if (!isCSV && !isExcel) { alert("Only .csv or .xlsx/.xls files are supported."); return; }
+    if (!file) return;
 
-  setFileName(file.name);
-  setParsing(true);
-  setParsedRows([]);
-  setResult(null);
-  setImportError(null);
+    // Security: validate file type by both extension and MIME type
+    const isCSV = file.name.endsWith(".csv") && (file.type === "text/csv" || file.type === "application/vnd.ms-excel" || file.type === "");
+    const isExcel = (file.name.endsWith(".xlsx") || file.name.endsWith(".xls")) &&
+      (file.type === "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" ||
+       file.type === "application/vnd.ms-excel" || file.type === "");
 
-  const exams = await fetchExams();
-  const examNames = exams.map((e) => e.exam_name);
-  setValidExams(examNames);
+    if (!isCSV && !isExcel) {
+      setImportError("Only .csv or .xlsx/.xls files are supported.");
+      return;
+    }
 
-    if (isCSV) {
+    // Security: enforce file size limit
+    if (file.size > MAX_FILE_SIZE_BYTES) {
+      setImportError(`File is too large. Maximum allowed size is ${MAX_FILE_SIZE_BYTES / (1024 * 1024)}MB.`);
+      return;
+    }
+
+    setFileName(file.name);
+    setParsing(true);
+    setParsedRows([]);
+    setResult(null);
+    setImportError(null);
+
+    let examNames: string[] = [];
+    try {
+      const exams = await fetchExams();
+      examNames = exams.map((e) => e.exam_name);
+      setValidExams(examNames);
+    } catch {
+      setParsing(false);
+      setImportError("Failed to load exam list. Please refresh the page and try again.");
+      return;
+    }
+
+    if (file.name.endsWith(".csv")) {
       const reader = new FileReader();
       reader.onload = (e) => {
-        const text = e.target?.result as string;
-        const rawRows = parseCSV(text);
-        setParsedRows(rawRows.map((r, i) => validateRow(r, i + 2, examNames)));
+        try {
+          const text = e.target?.result as string;
+          if (!text || text.trim() === "") {
+            setImportError("The uploaded file appears to be empty.");
+            setParsing(false);
+            return;
+          }
+          const rawRows = parseCSV(text);
+          if (rawRows.length === 0) {
+            setImportError("No data rows found. Make sure the file has a header row and at least one data row.");
+            setParsing(false);
+            return;
+          }
+          if (rawRows.length > MAX_ROWS) {
+            setImportError(`File contains too many rows (${rawRows.length}). Maximum allowed is ${MAX_ROWS}.`);
+            setParsing(false);
+            return;
+          }
+          // Security: check required columns are present
+          const headers = Object.keys(rawRows[0]);
+          const missingCols = REQUIRED_COLUMNS.filter(col => !headers.includes(col));
+          if (missingCols.length > 0) {
+            setImportError(`Missing required columns: ${missingCols.join(", ")}. Please use the provided template.`);
+            setParsing(false);
+            return;
+          }
+          setParsedRows(rawRows.map((r, i) => validateRow(r, i + 2, examNames)));
+        } catch {
+          setImportError("Failed to parse the CSV file. Please check the file format and try again.");
+        } finally {
+          setParsing(false);
+        }
+      };
+      reader.onerror = () => {
+        setImportError("Could not read the file. Please try again.");
         setParsing(false);
       };
       reader.readAsText(file);
@@ -172,16 +219,48 @@ export default function BulkUploadPage() {
       import("xlsx").then((XLSX) => {
         const reader = new FileReader();
         reader.onload = (e) => {
-          const data = new Uint8Array(e.target?.result as ArrayBuffer);
-          const wb = XLSX.read(data, { type: "array" });
-          const sheet = wb.Sheets[wb.SheetNames[0]];
-          const json: Record<string, string>[] = XLSX.utils.sheet_to_json(sheet, { defval: "" });
-          setParsedRows(json.map((r, i) => validateRow(r, i + 2, examNames)));
+          try {
+            const data = new Uint8Array(e.target?.result as ArrayBuffer);
+            const wb = XLSX.read(data, { type: "array" });
+            if (!wb.SheetNames.length) {
+              setImportError("The Excel file has no sheets.");
+              setParsing(false);
+              return;
+            }
+            const sheet = wb.Sheets[wb.SheetNames[0]];
+            const json: Record<string, string>[] = XLSX.utils.sheet_to_json(sheet, { defval: "" });
+            if (json.length === 0) {
+              setImportError("No data rows found in the first sheet.");
+              setParsing(false);
+              return;
+            }
+            if (json.length > MAX_ROWS) {
+              setImportError(`File contains too many rows (${json.length}). Maximum allowed is ${MAX_ROWS}.`);
+              setParsing(false);
+              return;
+            }
+            // Security: check required columns are present
+            const headers = Object.keys(json[0]);
+            const missingCols = REQUIRED_COLUMNS.filter(col => !headers.includes(col));
+            if (missingCols.length > 0) {
+              setImportError(`Missing required columns: ${missingCols.join(", ")}. Please use the provided template.`);
+              setParsing(false);
+              return;
+            }
+            setParsedRows(json.map((r, i) => validateRow(r, i + 2, examNames)));
+          } catch {
+            setImportError("Failed to parse the Excel file. Please check the file format and try again.");
+          } finally {
+            setParsing(false);
+          }
+        };
+        reader.onerror = () => {
+          setImportError("Could not read the file. Please try again.");
           setParsing(false);
         };
         reader.readAsArrayBuffer(file);
       }).catch(() => {
-        alert("Could not load Excel parser. Please use a CSV file.");
+        setImportError("Could not load Excel parser. Please use a CSV file instead.");
         setParsing(false);
       });
     }
@@ -208,41 +287,49 @@ export default function BulkUploadPage() {
   };
 
   const handleCommit = async () => {
-  setImporting(true);
-  setImportError(null);
-  setImportProgress(0);
+    if (validRows.length === 0) {
+      setImportError("No valid rows to import.");
+      return;
+    }
 
-  // Simulate row-by-row progress before actual upload
-  const total = validRows.length;
-  let current = 0;
-  const interval = setInterval(() => {
-    current += 1;
-    setImportProgress(Math.min(current, total - 1)); // stop at total-1, jump to total on success
-    if (current >= total - 1) clearInterval(interval);
-  }, Math.min(800, (total * 600) / total)); // scale speed to row count
+    setImporting(true);
+    setImportError(null);
+    setImportProgress(0);
 
-  try {
-    const res = await apiBulkUpload(validRows);
-    clearInterval(interval);
-    setImportProgress(total); // 100%
-    setTimeout(() => {
-      setResult(res);
-      setParsedRows([]);
-    }, 400); // brief pause so user sees 100%
-  } catch (err: any) {
-    clearInterval(interval);
-    setImportError(err.message);
-  } finally {
-    setImporting(false);
-  }
-};
+    const total = validRows.length;
+    let current = 0;
+    const interval = setInterval(() => {
+      current += 1;
+      setImportProgress(Math.min(current, total - 1));
+      if (current >= total - 1) clearInterval(interval);
+    }, Math.min(800, (total * 600) / total));
+
+    try {
+      const res = await apiBulkUpload(validRows);
+      clearInterval(interval);
+      setImportProgress(total);
+      setTimeout(() => {
+        setResult(res);
+        setParsedRows([]);
+      }, 400);
+    } catch (err: unknown) {
+      clearInterval(interval);
+      if (err instanceof Error) {
+        setImportError(err.message || "Import failed. Please try again.");
+      } else {
+        setImportError("An unexpected error occurred during import. Please try again.");
+      }
+    } finally {
+      setImporting(false);
+    }
+  };
 
   const handleReset = () => {
-  setParsedRows([]);
-  setFileName("");
-  setResult(null);
-  setImportError(null);
-  setImportProgress(0);
+    setParsedRows([]);
+    setFileName("");
+    setResult(null);
+    setImportError(null);
+    setImportProgress(0);
     if (fileRef.current) fileRef.current.value = "";
   };
 
@@ -352,9 +439,16 @@ export default function BulkUploadPage() {
               <p className="text-sm font-semibold text-gray-700">
                 {parsing ? "Parsing file…" : "Drop your file here, or click to browse"}
               </p>
-              <p className="text-xs text-gray-400 mt-1">Supports .csv and .xlsx / .xls</p>
+              <p className="text-xs text-gray-400 mt-1">Supports .csv and .xlsx / .xls · Max 5MB · Max {MAX_ROWS.toLocaleString()} rows</p>
             </div>
             <input ref={fileRef} type="file" accept=".csv,.xlsx,.xls" className="hidden" onChange={handleFileChange} />
+          </div>
+        )}
+
+        {/* File-level error (shown below upload zone or before parse results) */}
+        {importError && !parsedRows.length && !result && (
+          <div className="flex items-center gap-2 bg-red-50 text-red-600 border border-red-200 rounded-xl px-4 py-3 text-sm font-medium">
+            <AlertTriangle size={16} className="flex-shrink-0" /> {importError}
           </div>
         )}
 
@@ -462,50 +556,50 @@ export default function BulkUploadPage() {
 
             {importError && (
               <div className="flex items-center gap-2 bg-red-50 text-red-600 border border-red-200 rounded-xl px-4 py-3 text-sm font-medium">
-                <AlertTriangle size={16} /> {importError}
+                <AlertTriangle size={16} className="flex-shrink-0" /> {importError}
               </div>
             )}
 
             {/* Commit */}
             <div className="space-y-3">
-  {importing && (
-    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 space-y-2">
-      <div className="flex items-center justify-between text-sm">
-        <span className="font-medium text-gray-700 flex items-center gap-2">
-          <Loader2 size={14} className="animate-spin text-[#2563EB]" />
-          Uploading rows to database…
-        </span>
-        <span className="text-[#2563EB] font-semibold">
-          {importProgress} / {validRows.length}
-        </span>
-      </div>
-      <div className="w-full bg-gray-100 rounded-full h-2 overflow-hidden">
-        <div
-          className="bg-[#2563EB] h-2 rounded-full transition-all duration-300"
-          style={{ width: `${(importProgress / validRows.length) * 100}%` }}
-        />
-      </div>
-      <p className="text-xs text-gray-400">Please don't close this tab</p>
-    </div>
-  )}
-  <div className="flex items-center gap-3">
-    <button
-      onClick={handleCommit}
-      disabled={validRows.length === 0 || importing}
-      className="flex items-center gap-2 px-6 py-2.5 bg-[#2563EB] hover:bg-[#1D4ED8] disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-semibold rounded-xl transition-colors shadow-sm"
-    >
-      {importing && <Loader2 size={15} className="animate-spin" />}
-      Import {validRows.length} Valid Row{validRows.length !== 1 ? "s" : ""} to Database
-    </button>
-    <button
-      onClick={handleReset}
-      disabled={importing}
-      className="px-6 py-2.5 bg-gray-100 hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed text-gray-700 text-sm font-semibold rounded-xl transition-colors"
-    >
-      Upload Different File
-    </button>
-  </div>
-</div>
+              {importing && (
+                <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 space-y-2">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="font-medium text-gray-700 flex items-center gap-2">
+                      <Loader2 size={14} className="animate-spin text-[#2563EB]" />
+                      Uploading rows to database…
+                    </span>
+                    <span className="text-[#2563EB] font-semibold">
+                      {importProgress} / {validRows.length}
+                    </span>
+                  </div>
+                  <div className="w-full bg-gray-100 rounded-full h-2 overflow-hidden">
+                    <div
+                      className="bg-[#2563EB] h-2 rounded-full transition-all duration-300"
+                      style={{ width: `${(importProgress / validRows.length) * 100}%` }}
+                    />
+                  </div>
+                  <p className="text-xs text-gray-400">Please don't close this tab</p>
+                </div>
+              )}
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={handleCommit}
+                  disabled={validRows.length === 0 || importing}
+                  className="flex items-center gap-2 px-6 py-2.5 bg-[#2563EB] hover:bg-[#1D4ED8] disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-semibold rounded-xl transition-colors shadow-sm"
+                >
+                  {importing && <Loader2 size={15} className="animate-spin" />}
+                  Import {validRows.length} Valid Row{validRows.length !== 1 ? "s" : ""} to Database
+                </button>
+                <button
+                  onClick={handleReset}
+                  disabled={importing}
+                  className="px-6 py-2.5 bg-gray-100 hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed text-gray-700 text-sm font-semibold rounded-xl transition-colors"
+                >
+                  Upload Different File
+                </button>
+              </div>
+            </div>
           </div>
         )}
 
