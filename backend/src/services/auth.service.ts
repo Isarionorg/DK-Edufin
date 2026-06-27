@@ -54,15 +54,15 @@ const validatePassword = (password: string): { isValid: boolean; message?: strin
   if (password.length < 8) {
     return { isValid: false, message: 'Password must be at least 8 characters long' };
   }
-  
+
   if (!/[A-Z]/.test(password)) {
     return { isValid: false, message: 'Password must contain at least one uppercase letter' };
   }
-  
+
   if (!/[0-9]/.test(password)) {
     return { isValid: false, message: 'Password must contain at least one number' };
   }
-  
+
   return { isValid: true };
 };
 
@@ -98,11 +98,11 @@ const comparePassword = async (password: string, hash: string): Promise<boolean>
  */
 const generateJWT = (payload: JWTPayload): string => {
   const secret = process.env.JWT_SECRET;
-  
+
   if (!secret) {
     throw new Error('JWT_SECRET is not defined in environment variables');
   }
-  
+
   return jwt.sign(payload, secret, { expiresIn: '7d' });
 };
 
@@ -112,7 +112,7 @@ const generateJWT = (payload: JWTPayload): string => {
 
 /**
  * Register a new user
- * 
+ *
  * Flow:
  * 1. Validate input data
  * 2. Check if user already exists
@@ -120,40 +120,39 @@ const generateJWT = (payload: JWTPayload): string => {
  * 4. Create user in database
  * 5. Generate and store OTP
  * 6. Send OTP email
- * 7. Auto-verify in dev mode
- * 8. Return success response
+ * 7. Return success response
  */
 export const registerUser = async (userData: RegisterUserDTO) => {
   // 1. VALIDATE INPUT
   if (!userData.email || !userData.password || !userData.full_name) {
     throw new Error('Email, password, and full name are required');
   }
-  
+
   if (!validateEmail(userData.email)) {
     throw new Error('Please enter a valid email address');
   }
-  
+
   const passwordValidation = validatePassword(userData.password);
   if (!passwordValidation.isValid) {
     throw new Error(passwordValidation.message || 'Invalid password');
   }
-  
+
   if (userData.phone && !validatePhone(userData.phone)) {
     throw new Error('Please enter a valid 10-digit phone number');
   }
-  
+
   // 2. CHECK IF USER EXISTS
   const existingUser = await prisma.users.findUnique({
     where: { email: userData.email.toLowerCase().trim() }
   });
-  
+
   if (existingUser) {
     throw new Error('An account with this email already exists. Please login instead.');
   }
-  
+
   // 3. HASH PASSWORD
   const hashedPassword = await hashPassword(userData.password);
-  
+
   // 4. CREATE USER
   const user = await prisma.users.create({
     data: {
@@ -164,20 +163,21 @@ export const registerUser = async (userData: RegisterUserDTO) => {
       is_email_verified: false // Always require email verification
     }
   });
-  
-  // 5. GENERATE AND STORE OTP
+
+  // 5. GENERATE OTP AND SEND EMAIL
+  // If this fails, roll back the user so they can retry registration cleanly
   try {
     const otp = await createOTP(user.user_id);
-    
-    // 6. SEND OTP EMAIL
     await sendOTPEmail(user.email, otp, user.full_name || 'User');
   } catch (error) {
-    // If OTP or email fails in production, rollback user creation
     await prisma.users.delete({ where: { user_id: user.user_id } });
-    throw error;
+    throw new Error(
+      'Account created but we could not send the verification email. ' +
+      'Please try registering again or contact support.'
+    );
   }
-  
-  // 7. RETURN SUCCESS
+
+  // 6. RETURN SUCCESS
   return {
     user_id: user.user_id,
     email: user.email,
@@ -188,7 +188,7 @@ export const registerUser = async (userData: RegisterUserDTO) => {
 
 /**
  * Verify OTP and activate user account
- * 
+ *
  * Flow:
  * 1. Validate input
  * 2. Find user by email
@@ -205,46 +205,43 @@ export const verifyOTP = async (verificationData: VerifyOTPDTO) => {
   if (!verificationData.email || !verificationData.otp_code) {
     throw new Error('Email and OTP code are required');
   }
-  
+
   if (verificationData.otp_code.length !== 6) {
     throw new Error('OTP must be 6 digits');
   }
-  
+
   // 2. FIND USER
   const user = await prisma.users.findUnique({
     where: { email: verificationData.email.toLowerCase().trim() }
   });
-  
+
   if (!user) {
     throw new Error('No account found with this email. Please register first.');
   }
-  
+
   // 3. CHECK IF ALREADY VERIFIED
   if (user.is_email_verified) {
     throw new Error('Email is already verified. Please login.');
   }
-  
+
   // 4. VALIDATE OTP
-  try {
-    await validateOTP(user.user_id, verificationData.otp_code);
-  } catch (error) {
-    throw error;
-  }
-  
+  // validateOTP already throws descriptive errors — let them bubble up naturally
+  await validateOTP(user.user_id, verificationData.otp_code);
+
   // 5. MARK USER AS VERIFIED
   const verifiedUser = await prisma.users.update({
     where: { user_id: user.user_id },
     data: { is_email_verified: true }
   });
-  
+
   // Mark OTP as used
   await markOTPAsUsed(user.user_id, verificationData.otp_code);
-  
+
   // 6. CREATE USER PROFILE (if not exists)
   const existingProfile = await prisma.user_profiles.findUnique({
     where: { user_id: user.user_id }
   });
-  
+
   if (!existingProfile) {
     await prisma.user_profiles.create({
       data: {
@@ -253,21 +250,21 @@ export const verifyOTP = async (verificationData: VerifyOTPDTO) => {
       }
     });
   }
-  
+
   // 7. SEND WELCOME EMAIL
   try {
     await sendWelcomeEmail(user.email, user.full_name || 'User');
   } catch (error) {
     console.error('Failed to send welcome email:', error);
-    // Don't throw error, verification already completed
+    // Non-fatal: verification already completed, so don't throw
   }
-  
+
   // 8. GENERATE JWT TOKEN
   const token = generateJWT({
     user_id: verifiedUser.user_id,
     email: verifiedUser.email
   });
-  
+
   // 9. RETURN SUCCESS
   return {
     token,
@@ -284,7 +281,7 @@ export const verifyOTP = async (verificationData: VerifyOTPDTO) => {
 
 /**
  * Resend OTP to user
- * 
+ *
  * Flow:
  * 1. Validate email
  * 2. Find user
@@ -299,42 +296,37 @@ export const resendOTP = async (email: string) => {
   if (!email) {
     throw new Error('Email is required');
   }
-  
+
   if (!validateEmail(email)) {
     throw new Error('Please enter a valid email address');
   }
-  
+
   // 2. FIND USER
   const user = await prisma.users.findUnique({
     where: { email: email.toLowerCase().trim() }
   });
-  
+
   if (!user) {
     throw new Error('No account found with this email. Please register first.');
   }
-  
+
   // 3. CHECK IF ALREADY VERIFIED
   if (user.is_email_verified) {
     throw new Error('Email is already verified. Please login.');
   }
-  
+
   // 4. CHECK RATE LIMIT (max 5 OTPs per hour)
   const isRateLimited = await checkOTPRateLimit(user.user_id, 60, 5);
   if (isRateLimited) {
     throw new Error('Too many OTP requests. Please try again after 1 hour.');
   }
-  
-  // 5. GENERATE NEW OTP
-  try {
-    const otp = await createOTP(user.user_id);
-    
-    // 6. SEND EMAIL
-    await sendOTPEmail(user.email, otp, user.full_name || 'User');
-  } catch (error) {
-    throw error;
-  }
-  
-  // 7. RETURN SUCCESS
+
+  // 5. GENERATE NEW OTP AND SEND EMAIL
+  // Errors from createOTP / sendOTPEmail bubble up naturally
+  const otp = await createOTP(user.user_id);
+  await sendOTPEmail(user.email, otp, user.full_name || 'User');
+
+  // 6. RETURN SUCCESS
   return {
     message: 'OTP has been resent to your email. Please check your inbox.'
   };
@@ -342,7 +334,7 @@ export const resendOTP = async (email: string) => {
 
 /**
  * Login user with email and password
- * 
+ *
  * Flow:
  * 1. Validate input
  * 2. Find user by email
@@ -356,38 +348,38 @@ export const loginUser = async (loginData: LoginDTO) => {
   if (!loginData.email || !loginData.password) {
     throw new Error('Email and password are required');
   }
-  
+
   if (!validateEmail(loginData.email)) {
     throw new Error('Please enter a valid email address');
   }
-  
+
   // 2. FIND USER
   const user = await prisma.users.findUnique({
     where: { email: loginData.email.toLowerCase().trim() }
   });
-  
+
   if (!user) {
     throw new Error('Invalid email or password. Please check your credentials.');
   }
-  
+
   // 3. CHECK EMAIL VERIFICATION (skip in development)
   if (!user.is_email_verified && process.env.NODE_ENV === 'production') {
     throw new Error('Please verify your email before logging in. Check your inbox for the OTP.');
   }
-  
+
   // 4. VERIFY PASSWORD
   const isPasswordValid = await comparePassword(loginData.password, user.password_hash);
-  
+
   if (!isPasswordValid) {
     throw new Error('Invalid email or password. Please check your credentials.');
   }
-  
+
   // 5. GENERATE JWT TOKEN
   const token = generateJWT({
     user_id: user.user_id,
     email: user.email
   });
-  
+
   // 6. RETURN SUCCESS
   return {
     token,
@@ -406,6 +398,12 @@ export const loginUser = async (loginData: LoginDTO) => {
  * Get user by ID
  */
 export const getUserById = async (userId: string) => {
+  // Guard against missing or blank ID before hitting Prisma
+  // (Prisma throws a raw internal error on malformed UUIDs)
+  if (!userId || typeof userId !== 'string' || userId.trim() === '') {
+    throw new Error('A valid user ID is required.');
+  }
+
   const user = await prisma.users.findUnique({
     where: { user_id: userId },
     select: {
@@ -438,17 +436,17 @@ export const getUserById = async (userId: string) => {
 
 /**
  * Verify JWT token (for middleware)
- * 
+ *
  * @param token - JWT token from Authorization header
  * @returns Decoded token payload
  */
 export const verifyToken = (token: string): JWTPayload => {
   const secret = process.env.JWT_SECRET;
-  
+
   if (!secret) {
     throw new Error('JWT_SECRET is not defined');
   }
-  
+
   try {
     const decoded = jwt.verify(token, secret) as JWTPayload;
     return decoded;

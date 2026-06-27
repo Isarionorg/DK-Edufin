@@ -11,6 +11,7 @@ export interface StudentProfileDTO {
   gender?: string;
   category_id: number;
   stream_id: number;
+  phone: string;
 }
 
 export interface ExamScoreDTO {
@@ -39,46 +40,32 @@ const validateCategoryId = async (category_id: number): Promise<boolean> => {
   const category = await prisma.categories.findUnique({
     where: { category_id }
   });
-
   return !!category;
 };
 
-const validateStreamId = async (
-  stream_id: number
-): Promise<boolean> => {
-  const stream =
-    await prisma.eligible_streams.findUnique({
-      where: { stream_id }
-    });
-
+const validateStreamId = async (stream_id: number): Promise<boolean> => {
+  const stream = await prisma.eligible_streams.findUnique({
+    where: { stream_id }
+  });
   return !!stream;
 };
 
-//phone number validation 
-export interface StudentProfileDTO {
-  date_of_birth?: string;
-  gender?: string;
-  category_id: number;
-  stream_id: number;
-  phone: string;          // NEW — mandatory
-}
 const validatePhone = (phone: string): boolean => {
-  // Indian 10-digit mobile number, optionally with +91 prefix
   return /^(\+91)?[6-9]\d{9}$/.test(phone.trim());
 };
 
-// const validateStream = (stream: string) =>
-//   ['Science', 'Commerce', 'Arts'].includes(stream);
-
 const validateGender = (gender?: string) =>
-  !gender ||
-  ['Male', 'Female', 'Other', 'Prefer not to say'].includes(gender);
+  !gender || ['Male', 'Female', 'Other', 'Prefer not to say'].includes(gender);
 
 // ============================================
 // PROFILE COMPLETION
 // ============================================
 
 export const checkProfileCompletion = async (userId: string) => {
+  if (!userId || userId.trim() === '') {
+    throw new Error('A valid user ID is required.');
+  }
+
   const profile = await prisma.user_profiles.findUnique({
     where: { user_id: userId }
   });
@@ -87,6 +74,10 @@ export const checkProfileCompletion = async (userId: string) => {
 };
 
 export const getProfileCompletionStatus = async (userId: string) => {
+  if (!userId || userId.trim() === '') {
+    throw new Error('A valid user ID is required.');
+  }
+
   const profile = await prisma.user_profiles.findUnique({
     where: { user_id: userId },
     include: { categories: true }
@@ -104,14 +95,12 @@ export const getProfileCompletionStatus = async (userId: string) => {
 
   if (!profile) missing.push('Profile');
   if (!profile?.category_id) missing.push('Category');
-  if (!profile?.stream_id)
-  missing.push('Stream');
+  if (!profile?.stream_id) missing.push('Stream');
   if (!examScores.length) missing.push('Exam Scores');
   if (!coursePreferences.length) missing.push('Course Preferences');
 
   return {
-    is_complete:
-      missing.length === 0 && profile?.is_profile_complete === true,
+    is_complete: missing.length === 0 && profile?.is_profile_complete === true,
     missing_fields: missing
   };
 };
@@ -124,38 +113,57 @@ export const completeStudentForm = async (
   userId: string,
   data: CompleteStudentFormDTO
 ) => {
+  if (!userId || userId.trim() === '') {
+    throw new Error('A valid user ID is required.');
+  }
+
+  if (!data.profile) {
+    throw new Error('Profile data is required.');
+  }
+
+  if (!data.exam_scores || data.exam_scores.length === 0) {
+    throw new Error('At least one exam score is required.');
+  }
+
+  if (!data.course_preferences || data.course_preferences.length === 0) {
+    throw new Error('At least one course preference is required.');
+  }
+
   if (!(await validateCategoryId(data.profile.category_id))) {
-  throw new Error('Invalid category');
-}
+    throw new Error('Invalid category selected. Please choose a valid category.');
+  }
 
-  if (
-  !(await validateStreamId(
-    data.profile.stream_id
-  ))
-) {
-  throw new Error('Invalid stream');
-}
+  if (!(await validateStreamId(data.profile.stream_id))) {
+    throw new Error('Invalid stream selected. Please choose a valid stream.');
+  }
 
-  if (!validateGender(data.profile.gender))
-    throw new Error('Invalid gender');
+  if (!validateGender(data.profile.gender)) {
+    throw new Error('Invalid gender. Accepted values: Male, Female, Other, Prefer not to say.');
+  }
+
+  if (!data.profile.phone || !validatePhone(data.profile.phone)) {
+    throw new Error('Invalid or missing phone number. Please enter a valid 10-digit Indian mobile number.');
+  }
 
   const user = await prisma.users.findUnique({
     where: { user_id: userId }
   });
 
-  if (!data.profile.phone || !validatePhone(data.profile.phone)) {
-  throw new Error('Invalid or missing phone number');
-}
+  if (!user) throw new Error('User not found.');
 
-  if (!user) throw new Error('User not found');
+  // Validate each exam score has at least one of score_value or rank_value
+  for (const score of data.exam_scores) {
+    if (score.score_value == null && score.rank_value == null) {
+      throw new Error(`Exam score entry for exam ID ${score.exam_id} must have either a score or a rank.`);
+    }
+  }
 
   const result = await prisma.$transaction(async (tx) => {
-  await tx.users.update({
-    where: { user_id: userId },
-    data: { phone: data.profile.phone.trim() },
-    
-    
-  });
+    await tx.users.update({
+      where: { user_id: userId },
+      data: { phone: data.profile.phone.trim() }
+    });
+
     const profile = await tx.user_profiles.upsert({
       where: { user_id: userId },
       create: {
@@ -165,8 +173,7 @@ export const completeStudentForm = async (
           : null,
         gender: data.profile.gender || null,
         category_id: data.profile.category_id,
-        stream_id:
-  data.profile.stream_id,
+        stream_id: data.profile.stream_id,
         is_profile_complete: true
       },
       update: {
@@ -175,8 +182,7 @@ export const completeStudentForm = async (
           : undefined,
         gender: data.profile.gender || undefined,
         category_id: data.profile.category_id,
-        stream_id:
-  data.profile.stream_id,
+        stream_id: data.profile.stream_id,
         is_profile_complete: true
       }
     });
@@ -193,9 +199,7 @@ export const completeStudentForm = async (
       }))
     });
 
-    await tx.user_course_preferences.deleteMany({
-      where: { user_id: userId }
-    });
+    await tx.user_course_preferences.deleteMany({ where: { user_id: userId } });
 
     await tx.user_course_preferences.createMany({
       data: data.course_preferences.map((p, i) => ({
@@ -206,14 +210,10 @@ export const completeStudentForm = async (
     });
 
     return profile;
-
-    
-  },
-{
+  }, {
     timeout: 15000,
     maxWait: 5000,
   });
-  
 
   return {
     message: 'Profile completed successfully',
@@ -226,13 +226,15 @@ export const completeStudentForm = async (
 // ============================================
 
 export const getStudentProfile = async (userId: string) => {
-  
+  if (!userId || userId.trim() === '') {
+    throw new Error('A valid user ID is required.');
+  }
 
   const user = await prisma.users.findUnique({
     where: { user_id: userId }
   });
 
-  if (!user) throw new Error('User not found');
+  if (!user) throw new Error('User not found.');
 
   const profile = await prisma.user_profiles.findUnique({
     where: { user_id: userId },
@@ -284,9 +286,32 @@ export const updateStudentProfile = async (
   userId: string,
   data: Partial<StudentProfileDTO>
 ) => {
-  if (data.phone !== undefined && !validatePhone(data.phone)) {
-    throw new Error('Invalid phone number');
+  if (!userId || userId.trim() === '') {
+    throw new Error('A valid user ID is required.');
   }
+
+  if (Object.keys(data).length === 0) {
+    throw new Error('No fields provided to update.');
+  }
+
+  if (data.phone !== undefined && !validatePhone(data.phone)) {
+    throw new Error('Invalid phone number. Please enter a valid 10-digit Indian mobile number.');
+  }
+
+  if (data.gender !== undefined && !validateGender(data.gender)) {
+    throw new Error('Invalid gender. Accepted values: Male, Female, Other, Prefer not to say.');
+  }
+
+  if (data.category_id !== undefined && !(await validateCategoryId(data.category_id))) {
+    throw new Error('Invalid category selected. Please choose a valid category.');
+  }
+
+  if (data.stream_id !== undefined && !(await validateStreamId(data.stream_id))) {
+    throw new Error('Invalid stream selected. Please choose a valid stream.');
+  }
+
+  const user = await prisma.users.findUnique({ where: { user_id: userId } });
+  if (!user) throw new Error('User not found.');
 
   if (data.phone) {
     await prisma.users.update({
@@ -321,32 +346,10 @@ export const getAvailableExams = async () => {
   });
 };
 
-// export const getAvailableCourses = async (
-//   streamId?: number
-// ) => {
-//   const mappings =
-//     await prisma.course_eligible_streams.findMany({
-//       where: streamId
-//         ? {
-//             stream_id: streamId
-//           }
-//         : undefined,
-
-//       include: {
-//         courses: true
-//       }
-//     });
-
-//   return mappings
-//     .map((m) => m.courses)
-//     .filter(Boolean);
-// };
-
 export const getAvailableCourses = async (
   streamId?: number,
   examId?: number
 ) => {
-  // Get course IDs valid for this stream
   let streamCourseIds: number[] | undefined;
   if (streamId) {
     const mappings = await prisma.course_eligible_streams.findMany({
@@ -354,9 +357,12 @@ export const getAvailableCourses = async (
       select: { course_id: true }
     });
     streamCourseIds = [...new Set(mappings.map(m => m.course_id))];
+
+    if (streamCourseIds.length === 0) {
+      throw new Error('No courses found for the selected stream.');
+    }
   }
 
-  // Get course IDs valid for this exam via college_course_exam_eligibility
   let examCourseIds: number[] | undefined;
   if (examId) {
     const eligibility = await prisma.college_course_exam_eligibility.findMany({
@@ -368,10 +374,14 @@ export const getAvailableCourses = async (
       }
     });
     examCourseIds = [...new Set(
-  eligibility
-    .map(e => e.college_courses?.course_id)
-    .filter((id): id is number => id != null)
-)];
+      eligibility
+        .map(e => e.college_courses?.course_id)
+        .filter((id): id is number => id != null)
+    )];
+
+    if (examCourseIds.length === 0) {
+      throw new Error('No courses found for the selected exam.');
+    }
   }
 
   // Intersect both filters
@@ -379,11 +389,15 @@ export const getAvailableCourses = async (
   if (streamCourseIds && examCourseIds) {
     const examSet = new Set(examCourseIds);
     validCourseIds = streamCourseIds.filter(id => examSet.has(id));
+
+    if (validCourseIds.length === 0) {
+      throw new Error('No courses found matching the selected stream and exam combination.');
+    }
   } else {
     validCourseIds = streamCourseIds ?? examCourseIds ?? [];
   }
 
-  // If no filters at all, return everything
+  // No filters — return everything
   if (!streamId && !examId) {
     return prisma.courses.findMany({ orderBy: { course_name: 'asc' } });
   }
@@ -401,17 +415,16 @@ export const getCategories = async () => {
 };
 
 export const getStreams = async (examId: number) => {
+  if (!examId || isNaN(examId) || examId < 1) {
+    throw new Error('A valid exam ID is required.');
+  }
+
   return prisma.eligible_streams.findMany({
     where: {
       exam_eligible_streams: {
-        some: {
-          exam_id: examId
-        }
+        some: { exam_id: examId }
       }
     },
-    orderBy: {
-      stream_name: 'asc'
-    }
+    orderBy: { stream_name: 'asc' }
   });
 };
-

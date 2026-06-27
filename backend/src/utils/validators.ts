@@ -11,10 +11,14 @@ export const authValidation = {
    */
   register: [
     body('email')
+      .notEmpty()
+      .withMessage('Email is required')
       .isEmail()
       .withMessage('Please provide a valid email address')
       .normalizeEmail(),
     body('password')
+      .notEmpty()
+      .withMessage('Password is required')
       .isLength({ min: 8 })
       .withMessage('Password must be at least 8 characters long')
       .matches(/[A-Z]/)
@@ -22,15 +26,15 @@ export const authValidation = {
       .matches(/[0-9]/)
       .withMessage('Password must contain at least one number'),
     body('full_name')
-      .trim()
       .notEmpty()
       .withMessage('Full name is required')
+      .trim()
       .isLength({ min: 2, max: 255 })
       .withMessage('Full name must be between 2 and 255 characters'),
     body('phone')
       .optional()
-      .matches(/^[0-9]{10}$/)
-      .withMessage('Phone number must be 10 digits')
+      .matches(/^(\+91)?[6-9]\d{9}$/)
+      .withMessage('Please enter a valid 10-digit Indian mobile number')
   ] as ValidationChain[],
 
   /**
@@ -38,14 +42,18 @@ export const authValidation = {
    */
   verifyOTP: [
     body('email')
+      .notEmpty()
+      .withMessage('Email is required')
       .isEmail()
       .withMessage('Please provide a valid email address')
       .normalizeEmail(),
     body('otp_code')
+      .notEmpty()
+      .withMessage('OTP code is required')
       .isLength({ min: 6, max: 6 })
-      .withMessage('OTP must be 6 digits')
+      .withMessage('OTP must be exactly 6 digits')
       .isNumeric()
-      .withMessage('OTP must be numeric')
+      .withMessage('OTP must contain digits only')
   ] as ValidationChain[],
 
   /**
@@ -53,6 +61,8 @@ export const authValidation = {
    */
   resendOTP: [
     body('email')
+      .notEmpty()
+      .withMessage('Email is required')
       .isEmail()
       .withMessage('Please provide a valid email address')
       .normalizeEmail()
@@ -63,6 +73,8 @@ export const authValidation = {
    */
   login: [
     body('email')
+      .notEmpty()
+      .withMessage('Email is required')
       .isEmail()
       .withMessage('Please provide a valid email address')
       .normalizeEmail(),
