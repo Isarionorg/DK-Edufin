@@ -137,8 +137,10 @@ export default function ContactPage() {
             </div>
 
             {/* WhatsApp */}
-            <div
-              className="bg-linear-to-r from-green-500 to-green-400 rounded-2xl p-6 shadow-md cursor-pointer hover:shadow-lg transition-shadow duration-200"
+            <a href="https://wa.me/919870517589?text=Hi%20DK%20Sir%2C%20I%20have%20a%20query%20about%20college%20admissions."
+              target="_blank"
+              rel="noopener noreferrer"
+              className="bg-linear-to-r from-green-500 to-green-400 rounded-2xl p-6 shadow-md hover:shadow-lg transition-shadow duration-200 block"
             >
               <div className="flex items-center gap-4">
                 <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center text-2xl">
@@ -149,7 +151,7 @@ export default function ContactPage() {
                   <p className="text-green-100 text-xs mt-0.5">Usually replies within minutes</p>
                 </div>
               </div>
-            </div>
+            </a>
 
             {/* Social Media */}
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
