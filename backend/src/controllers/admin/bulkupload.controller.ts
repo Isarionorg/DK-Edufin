@@ -240,6 +240,26 @@ export async function bulkUpload(req: Request, res: Response) {
           continue;
         }
 
+        // 4a. Exam eligible streams
+for (const code of streamCodes) {
+  const stream = streamByCode.get(code);
+  if (stream && exam) {
+    await prisma.exam_eligible_streams.upsert({
+  where: {
+    exam_id_stream_id: {
+      exam_id: exam.exam_id,
+      stream_id: stream.stream_id,
+    },
+  },
+  update: {},
+  create: {
+    exam_id: exam.exam_id,
+    stream_id: stream.stream_id,
+  },
+});
+  }
+}
+
         // 5. Upsert Cutoff
         const year = Number(row.academicYear);
         const round = Number(row.roundNumber) || 1;

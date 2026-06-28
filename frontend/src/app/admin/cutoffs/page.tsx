@@ -10,16 +10,11 @@ import {
   createCutoff as apiCreateCutoff,
   ApiCollegeCourse,
   ApiCutoff,
+  fetchExams,
+  ApiExam,
 } from "@/lib/adminapi";
-import { fetchExams, ApiExam } from "@/lib/adminapi";
 
-
-
-// const EXAMS: Exam[] = ["CUET", "JEE_MAIN", "JEE_ADVANCED", "MHT_CET", "KCET", "WBJEE", "Other"];
 const CATEGORIES: Category[] = ["UR", "OBC", "SC", "ST", "EWS", "PwBD"];
-
-const SCORE_EXAMS: Exam[] = ["CUET"];
-const RANK_EXAMS: Exam[] = ["JEE_MAIN", "JEE_ADVANCED", "MHT_CET", "KCET", "WBJEE"];
 
 const emptyForm = {
   collegeCourseId: "",
@@ -34,6 +29,7 @@ const emptyForm = {
 export default function CutoffsPage() {
   const [pairs, setPairs] = useState<ApiCollegeCourse[]>([]);
   const [cutoffs, setCutoffs] = useState<ApiCutoff[]>([]);
+  const [examsList, setExamsList] = useState<ApiExam[]>([]);
   const [loadingData, setLoadingData] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [form, setForm] = useState(emptyForm);
@@ -41,31 +37,21 @@ export default function CutoffsPage() {
   const [apiError, setApiError] = useState<string | null>(null);
   const [submitted, setSubmitted] = useState(false);
 
-
-  const [examsList, setExamsList] = useState<ApiExam[]>([]);
-useEffect(() => {
-  Promise.all([fetchCollegeCourses(), fetchCutoffs(), fetchExams()])
-    .then(([p, c, ex]) => {
-      setPairs(p);
-      setCutoffs(c);
-      setExamsList(ex);
-    })
-    .catch((e) => setApiError(e.message))
-    .finally(() => setLoadingData(false));
-}, []);
-
   useEffect(() => {
-    Promise.all([fetchCollegeCourses(), fetchCutoffs()])
-      .then(([p, c]) => {
+    Promise.all([fetchCollegeCourses(), fetchCutoffs(), fetchExams()])
+      .then(([p, c, ex]) => {
         setPairs(p);
         setCutoffs(c);
+        setExamsList(ex);
       })
       .catch((e) => setApiError(e.message))
       .finally(() => setLoadingData(false));
   }, []);
 
-  const isScoreExam = form.exam ? SCORE_EXAMS.includes(form.exam as Exam) : false;
-  const isRankExam = form.exam ? RANK_EXAMS.includes(form.exam as Exam) : false;
+  // ✅ Now inside the component — form and examsList are in scope
+  const selectedExam = examsList.find((ex) => ex.exam_name === form.exam);
+  const isScoreExam = selectedExam?.qualification_type === "score";
+  const isRankExam = selectedExam?.qualification_type === "rank";
 
   const validate = () => {
     const e: Record<string, string> = {};
@@ -180,10 +166,12 @@ useEffect(() => {
                   }`}
                 >
                   <option value="">-- Select exam --</option>
-  {examsList.map((ex) => (
-    <option key={ex.exam_id} value={ex.exam_name}>{ex.exam_name.replace(/_/g, " ")}</option>
-  ))}
-</select>
+                  {examsList.map((ex) => (
+                    <option key={ex.exam_id} value={ex.exam_name}>
+                      {ex.exam_name.replace(/_/g, " ")}
+                    </option>
+                  ))}
+                </select>
                 {errors.exam && <p className="text-xs text-red-500 mt-1">{errors.exam}</p>}
               </div>
 
@@ -210,7 +198,8 @@ useEffect(() => {
               {/* Cutoff Score */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                  Cutoff Score <span className="ml-1 text-xs text-gray-400 font-normal">(for CUET)</span>
+                  Cutoff Score{" "}
+                  <span className="ml-1 text-xs text-gray-400 font-normal">(for score-based exams)</span>
                 </label>
                 <input
                   type="number"
@@ -228,7 +217,8 @@ useEffect(() => {
               {/* Cutoff Rank */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                  Cutoff Rank <span className="ml-1 text-xs text-gray-400 font-normal">(for JEE / state CETs)</span>
+                  Cutoff Rank{" "}
+                  <span className="ml-1 text-xs text-gray-400 font-normal">(for rank-based exams)</span>
                 </label>
                 <input
                   type="number"
@@ -283,8 +273,10 @@ useEffect(() => {
               <div className="flex items-center gap-2 px-4 py-3 bg-amber-50 border border-amber-100 rounded-xl text-xs text-amber-700">
                 <Info size={13} className="flex-shrink-0" />
                 {isScoreExam
-                  ? "CUET uses a score-based cutoff. Rank field is disabled."
-                  : "This exam uses a rank-based cutoff. Score field is disabled."}
+                  ? "This exam uses a score-based cutoff. Rank field is disabled."
+                  : isRankExam
+                  ? "This exam uses a rank-based cutoff. Score field is disabled."
+                  : "Cutoff type not set for this exam. Both fields are enabled."}
               </div>
             )}
 

@@ -176,7 +176,7 @@ export default function StudentForm({
   });
 
   // OTP state — initialize as already verified if prop says so
-  const [phoneVerified, setPhoneVerified] = useState(isPhoneVerified);
+  const [phoneVerified, setPhoneVerified] = useState(true);//bypassing the otp check for now, can be enabled later by changing this to isPhoneVerified
   const [showOtpModal, setShowOtpModal] = useState(false);
 
   // ── FETCH INITIAL DATA ──
@@ -288,11 +288,10 @@ export default function StudentForm({
     }));
   };
 
-  const getExamInputType = (examName: string) => {
-    if (examName === "CUET") return "score";
-    if (examName === "JEE_MAIN" || examName === "JEE_ADVANCED") return "rank";
-    return "both";
-  };
+  const getExamInputType = (examName: string): "score" | "rank" | "percentile" => {
+  const examObj = exams.find((e) => e.exam_name === examName);
+  return examObj?.qualification_type ?? "score";
+};
 
   // ── PHONE VALIDATION ──
   const validatePhone = (phone: string) =>
@@ -398,7 +397,7 @@ export default function StudentForm({
 
         {/* PHONE NUMBER */}
         {/* PHONE NUMBER - only show if not yet verified */}
-{!phoneVerified && (
+{!existingPhone && (
   <div>
     <label className="block text-lg font-semibold mb-2">
       Phone Number <span className="text-red-500">*</span>
@@ -421,13 +420,13 @@ export default function StudentForm({
         className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
         required
       />
-      <button
+      {/* <button
         type="button"
         onClick={handleRequestOtp}
         className="px-5 py-3 rounded-lg bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 transition-colors whitespace-nowrap"
       >
         Send OTP
-      </button>
+      </button> */}
     </div>
     <p className="text-xs text-gray-400 mt-1.5">
       You'll receive a one-time code to verify this number. This is required only once.
@@ -436,7 +435,7 @@ export default function StudentForm({
 )}
 
 {/* Show verified badge if already done */}
-{phoneVerified && form.phone && (
+{phoneVerified && form.phone && form.phone.replace(/\D/g, "").length >= 10 && (
   <div className="flex items-center gap-2 p-3 bg-green-50 border border-green-200 rounded-lg">
     <span className="text-green-600 font-semibold">✓ Phone Verified</span>
     <span className="text-gray-500 text-sm">{form.phone}</span>
@@ -455,9 +454,30 @@ export default function StudentForm({
                 <button
                   type="button"
                   onClick={() => {
-                    toggleExam(exam);
-                    handleExamSelection(examObj.exam_id);
-                  }}
+  const isAlreadySelected = !!form.examScores.find((e) => e.examType === exam);
+  if (isAlreadySelected) {
+    // deselect it
+    setForm((prev) => ({
+      ...prev,
+      examScores: prev.examScores.filter((e) => e.examType !== exam),
+      selectedExamId: "",
+      stream_id: "",
+      preferredCourses: [],
+    }));
+    setStreams([]);
+    setCourses([]);
+  } else {
+    // select this one, clear everything else
+    setForm((prev) => ({
+      ...prev,
+      examScores: [{ examType: exam }],
+      selectedExamId: examObj.exam_id,
+      stream_id: "",
+      preferredCourses: [],
+    }));
+    handleExamSelection(examObj.exam_id);
+  }
+}}
                   className={`w-full p-3 rounded-lg border-2 text-left ${
                     selected
                       ? "border-blue-600 bg-blue-50"
@@ -468,61 +488,48 @@ export default function StudentForm({
                 </button>
 
                 {selected && (
-                  <div className="mt-3 ml-4 space-y-3">
-                    {getExamInputType(exam) === "score" && (
-                      <div>
-                        <label className="text-sm text-gray-600">
-                          Score / Percentile
-                        </label>
-                        <input
-                          type="number"
-                          placeholder="Enter your score"
-                          value={selected.marks || ""}
-                          onChange={(e) =>
-                            updateExamScore(exam, "marks", e.target.value)
-                          }
-                          className="w-full px-4 py-2 border rounded-lg"
-                        />
-                      </div>
-                    )}
-                    {getExamInputType(exam) === "rank" && (
-                      <div>
-                        <label className="text-sm text-gray-600">Rank</label>
-                        <input
-                          type="number"
-                          placeholder="Enter your rank"
-                          value={selected.rank || ""}
-                          onChange={(e) =>
-                            updateExamScore(exam, "rank", e.target.value)
-                          }
-                          className="w-full px-4 py-2 border rounded-lg"
-                        />
-                      </div>
-                    )}
-                    {getExamInputType(exam) === "both" && (
-                      <>
-                        <input
-                          type="number"
-                          placeholder="Score"
-                          value={selected.marks || ""}
-                          onChange={(e) =>
-                            updateExamScore(exam, "marks", e.target.value)
-                          }
-                          className="w-full px-4 py-2 border rounded-lg"
-                        />
-                        <input
-                          type="number"
-                          placeholder="Rank"
-                          value={selected.rank || ""}
-                          onChange={(e) =>
-                            updateExamScore(exam, "rank", e.target.value)
-                          }
-                          className="w-full px-4 py-2 border rounded-lg"
-                        />
-                      </>
-                    )}
-                  </div>
-                )}
+  <div className="mt-3 ml-4 space-y-3">
+    {getExamInputType(exam) === "score" && (
+      <div>
+        <label className="text-sm text-gray-600">Score</label>
+        <input
+          type="number"
+          placeholder="Enter your score"
+          value={selected.marks || ""}
+          onChange={(e) => updateExamScore(exam, "marks", e.target.value)}
+          className="w-full px-4 py-2 border rounded-lg"
+        />
+      </div>
+    )}
+    {getExamInputType(exam) === "rank" && (
+      <div>
+        <label className="text-sm text-gray-600">Rank</label>
+        <input
+          type="number"
+          placeholder="Enter your rank"
+          value={selected.rank || ""}
+          onChange={(e) => updateExamScore(exam, "rank", e.target.value)}
+          className="w-full px-4 py-2 border rounded-lg"
+        />
+      </div>
+    )}
+    {getExamInputType(exam) === "percentile" && (
+      <div>
+        <label className="text-sm text-gray-600">Percentile</label>
+        <input
+          type="number"
+          step="0.01"
+          min="0"
+          max="100"
+          placeholder="Enter your percentile (e.g. 98.5)"
+          value={selected.marks || ""}
+          onChange={(e) => updateExamScore(exam, "marks", e.target.value)}
+          className="w-full px-4 py-2 border rounded-lg"
+        />
+      </div>
+    )}
+  </div>
+)}
               </div>
             );
           })}
