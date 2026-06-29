@@ -121,6 +121,22 @@ export async function createCutoff(req: Request, res: Response) {
       },
     });
 
+    // Link exam to all streams associated with this course
+if (collegeCourse.course_id) {
+  const courseStreams = await prisma.course_eligible_streams.findMany({
+    where: { course_id: collegeCourse.course_id },
+    select: { stream_id: true },
+  });
+
+  for (const { stream_id } of courseStreams) {
+    await prisma.exam_eligible_streams.upsert({
+      where: { exam_id_stream_id: { exam_id: exam.exam_id, stream_id } },
+      update: {},
+      create: { exam_id: exam.exam_id, stream_id },
+    });
+  }
+}
+
     await prisma.college_course_exam_eligibility.upsert({
       where: { college_course_id_exam_id: { college_course_id: Number(collegeCourseId), exam_id: exam.exam_id } },
       update: {},

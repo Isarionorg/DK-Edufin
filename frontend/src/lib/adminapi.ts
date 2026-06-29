@@ -159,6 +159,7 @@ export interface ApiCutoff {
   college_courses: {
     colleges: { college_name: string } | null;
     courses: { course_name: string } | null;
+    qualification_type: string | null;
   } | null;
 }
 
