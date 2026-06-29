@@ -26,6 +26,8 @@ interface LoginRequestBody {
   email: string;
   password: string;
 }
+interface ForgotPasswordRequestBody { email: string; }
+interface ResetPasswordRequestBody { email: string; otp_code: string; new_password: string; }
 
 // ============================================
 // UTILITY FUNCTIONS
@@ -163,4 +165,30 @@ export const healthCheck = async (req: Request, res: Response) => {
     environment: process.env.NODE_ENV || "development",
     service: "auth",
   }, "Auth service is running");
+};
+
+export const forgotPassword = async (req: Request<{}, {}, ForgotPasswordRequestBody>, res: Response) => {
+  try {
+    const { email } = req.body;
+    if (!email?.trim()) return errorResponse(res, 400, 'email is required');
+
+    const result = await authService.forgotPassword(email.trim());
+    return successResponse(res, 200, null, result.message);
+  } catch (error: any) {
+    return handleServiceError(res, error, 'Failed to process request.');
+  }
+};
+
+export const resetPassword = async (req: Request<{}, {}, ResetPasswordRequestBody>, res: Response) => {
+  try {
+    const { email, otp_code, new_password } = req.body;
+    if (!email?.trim())       return errorResponse(res, 400, 'email is required');
+    if (!otp_code?.trim())    return errorResponse(res, 400, 'otp_code is required');
+    if (!new_password)        return errorResponse(res, 400, 'new_password is required');
+
+    const result = await authService.resetPassword(email.trim(), otp_code.trim(), new_password);
+    return successResponse(res, 200, null, result.message);
+  } catch (error: any) {
+    return handleServiceError(res, error, 'Password reset failed. Please try again.');
+  }
 };
