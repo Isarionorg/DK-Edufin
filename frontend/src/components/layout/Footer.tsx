@@ -103,7 +103,7 @@ export default function Footer() {
                 <span className="text-lg mt-0.5">✉️</span>
                 <div>
                   <p className="text-gray-400 text-xs mb-0.5">E-mail</p>
-                  <p className="text-white text-sm font-medium">dkedufinindia@gmial.com</p>
+                  <p className="text-white text-sm font-medium">dkedufinindia@gmail.com</p>
                 </div>
               </li>
               <li className="flex items-start gap-3">
