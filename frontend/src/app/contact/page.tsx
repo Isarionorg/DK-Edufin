@@ -15,40 +15,60 @@ export default function ContactPage() {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
 
+
+
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError("");
-    if (!form.name || !form.email || !form.message) {
-      setError("Please fill in all fields.");
-      return;
-    }
-    setIsSubmitting(true);
-    setTimeout(() => {
-      setIsSubmitting(false);
-      setSubmitted(true);
-    }, 1500);
-  };
+  e.preventDefault();
+  setError("");
+
+  if (!form.name || !form.email || !form.message) {
+    setError("Please fill in all fields.");
+    return;
+  }
+
+  setIsSubmitting(true);
+
+  try {
+    const res = await fetch("https://formspree.io/f/xdardlrj", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: form.name,
+        email: form.email,
+        message: form.message,
+      }),
+    });
+
+    if (!res.ok) throw new Error("Something went wrong.");
+
+    setSubmitted(true);
+  } catch (err: any) {
+    setError("Failed to send message. Please try again.");
+  } finally {
+    setIsSubmitting(false);
+  }
+};
 
   const contactDetails = [
     {
       icon: "📞",
       title: "Call Us",
-      subtitle: "Mon–Sat, 9am to 6pm",
-      value: "+91 99999 99999",
+      subtitle: "Mon–Fri, 9am to 6pm",
+      value: "+91 98705 17589",
       color: "bg-blue-500",
     },
     {
       icon: "✉️",
       title: "E-mail Us",
       subtitle: "We reply within 24 hours",
-      value: "contact@dkedufin.com",
+      value: "dkedufinindia@gmail.com",
       color: "bg-indigo-500",
     },
     {
       icon: "📍",
       title: "Visit Us",
-      subtitle: "123, Education Hub, Sector 18",
-      value: "Noida, Uttar Pradesh – 201301",
+      subtitle: "FS-14, Block F, Lajpat Nagar, Rajendra Nagar",
+      value: "Sahibabad, Ghaziabad, Uttar Pradesh 201005",
       color: "bg-sky-500",
     },
   ];
