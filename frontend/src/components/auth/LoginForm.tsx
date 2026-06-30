@@ -6,6 +6,8 @@ import { useRouter } from "next/navigation";
 import Button from "@/components/ui/Button";
 import axiosInstance from "@/lib/axios";
 import { useAuth } from "@/hooks/useAuth"; // 1. Import hook
+import ForgotPasswordForm from "@/components/auth/ForgotPasswordForm";
+
 
 interface LoginFormProps {
   onSwitch: () => void;
@@ -18,6 +20,7 @@ export default function LoginForm({ onSwitch }: LoginFormProps) {
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -59,6 +62,10 @@ export default function LoginForm({ onSwitch }: LoginFormProps) {
     }
   };
 
+  if (showForgotPassword) {
+    return <ForgotPasswordForm onBack={() => setShowForgotPassword(false)} />;
+  }
+
   return (
     <div className="w-full">
       <div className="text-center mb-8">
@@ -95,11 +102,12 @@ export default function LoginForm({ onSwitch }: LoginFormProps) {
           />
           <div className="text-right mt-2">
             <button
-              type="button"
-              className="text-sm text-blue-500 hover:text-blue-600 font-medium"
-            >
-              Forgot password?
-            </button>
+  type="button"
+  onClick={() => setShowForgotPassword(true)}
+  className="text-sm text-blue-500 hover:text-blue-600 font-medium"
+>
+  Forgot password?
+</button>
           </div>
         </div>
 

@@ -3,7 +3,7 @@
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
-import { sendOTPEmail, sendWelcomeEmail } from './email.service';
+import { sendOTPEmail, sendWelcomeEmail, sendPasswordResetEmail } from './email.service';
 import { createOTP, validateOTP, markOTPAsUsed, checkOTPRateLimit } from './otp.service';
 
 const prisma = new PrismaClient();
@@ -459,4 +459,69 @@ export const verifyToken = (token: string): JWTPayload => {
       throw new Error('Authentication failed. Please login again.');
     }
   }
+};
+
+// ============================================
+// FORGOT PASSWORD
+// ============================================
+
+/**
+ * Initiate forgot password — send OTP to email
+ */
+export const forgotPassword = async (email: string) => {
+  if (!email) throw new Error('Email is required');
+  if (!validateEmail(email)) throw new Error('Please enter a valid email address');
+
+  const user = await prisma.users.findUnique({
+    where: { email: email.toLowerCase().trim() }
+  });
+
+  // Don't reveal whether the account exists — always return success
+  if (!user) {
+    return { message: 'If an account exists with this email, you will receive an OTP shortly.' };
+  }
+
+  const isRateLimited = await checkOTPRateLimit(user.user_id, 60, 5);
+  if (isRateLimited) {
+    throw new Error('Too many requests. Please try again after 1 hour.');
+  }
+
+  const otp = await createOTP(user.user_id);
+  await sendPasswordResetEmail(user.email, otp, user.full_name || 'User');
+  // ↑ Reuses your existing email template. Optionally create a sendPasswordResetEmail variant.
+
+  return { message: 'If an account exists with this email, you will receive an OTP shortly.' };
+};
+
+/**
+ * Reset password using OTP
+ */
+export const resetPassword = async (email: string, otp_code: string, new_password: string) => {
+  if (!email || !otp_code || !new_password) {
+    throw new Error('Email, OTP, and new password are required');
+  }
+
+  const passwordValidation = validatePassword(new_password);
+  if (!passwordValidation.isValid) {
+    throw new Error(passwordValidation.message || 'Invalid password');
+  }
+
+  const user = await prisma.users.findUnique({
+    where: { email: email.toLowerCase().trim() }
+  });
+
+  if (!user) throw new Error('Invalid or expired OTP.');  // Don't reveal account existence
+
+  await validateOTP(user.user_id, otp_code);  // throws if invalid/expired
+
+  const hashedPassword = await hashPassword(new_password);
+
+  await prisma.users.update({
+    where: { user_id: user.user_id },
+    data: { password_hash: hashedPassword }
+  });
+
+  await markOTPAsUsed(user.user_id, otp_code);
+
+  return { message: 'Password reset successful! You can now log in.' };
 };

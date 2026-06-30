@@ -41,6 +41,9 @@ router.post('/login', validate(authValidation.login), authController.login);
  */
 router.post('/logout', authenticate, authController.logout);
 
+router.post('/forgot-password', authController.forgotPassword);
+router.post('/reset-password', authController.resetPassword);
+
 /**
  * @route   GET /api/v1/auth/me
  * @desc    Get current user
