@@ -39,11 +39,24 @@ export default function ContactPage() {
       }),
     });
 
-    if (!res.ok) throw new Error("Something went wrong.");
+    if (!res.ok) {
+      let message = "Something went wrong. Please try again.";
+      try {
+        const data = await res.json();
+        if (data?.errors?.length) {
+          message = data.errors.map((e: any) => e.message).join(" ");
+        } else if (data?.error) {
+          message = data.error;
+        }
+      } catch {
+        // response wasn't JSON — fall back to the generic message
+      }
+      throw new Error(message);
+    }
 
     setSubmitted(true);
   } catch (err: any) {
-    setError("Failed to send message. Please try again.");
+    setError(err.message || "Failed to send message. Please try again.");
   } finally {
     setIsSubmitting(false);
   }

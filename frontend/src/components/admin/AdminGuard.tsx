@@ -15,10 +15,15 @@ export default function AdminGuard({ children }: { children: React.ReactNode }) 
       return;
     }
 
-    if (!isAdminLoggedIn()) {
+    try {
+      if (!isAdminLoggedIn()) {
+        router.replace('/admin/login');
+      } else {
+        setChecked(true);
+      }
+    } catch (err) {
+      console.error('Admin auth check failed:', err);
       router.replace('/admin/login');
-    } else {
-      setChecked(true);
     }
   }, [pathname, router]);
 
