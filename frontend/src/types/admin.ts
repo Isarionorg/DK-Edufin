@@ -11,6 +11,7 @@ export interface College {
   city: string;
   state: string;
   website?: string;
+  naacGrade?: string;
   isPartner: boolean;
   createdAt: string;
 }
@@ -50,6 +51,7 @@ export interface BulkUploadRow {
   city: string;
   state: string;
   website?: string;
+  naacGrade?: string;
   isPartner: string;
   courseName: string;
   degreeType: string;

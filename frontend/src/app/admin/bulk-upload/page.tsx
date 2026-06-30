@@ -25,14 +25,15 @@ const MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024;
 const MAX_ROWS = 5000;
 
 const TEMPLATE_HEADERS = [
-  "collegeName","collegeType","city","state","website","isPartner",
+  "collegeName","collegeType","city","state","website","naacGrade","isPartner",
   "courseName","degreeType","eligibleStreams","exam","category",
   "cutoffScore","cutoffRank","academicYear","roundNumber",
 ];
 const TEMPLATE_SAMPLE = [
-  "Delhi University","Government","New Delhi","Delhi","https://du.ac.in","yes",
+  "Delhi University","Government","New Delhi","Delhi","https://du.ac.in","A++","yes",
   "B.Sc (Hons.) Mathematics","UG","PCM|PCB","CUET","UR","680","","2025","1",
 ];
+
 
 function validateRow(row: Record<string, string>, index: number, validExams: string[]): ParsedRow {
   const errors: string[] = [];
@@ -80,6 +81,7 @@ function validateRow(row: Record<string, string>, index: number, validExams: str
   return {
     collegeName: get("collegeName"), collegeType: get("collegeType"),
     city: get("city"), state: get("state"), website: get("website"),
+    naacGrade: get("naacGrade") || undefined,
     isPartner: get("isPartner"), courseName: get("courseName"),
     degreeType: get("degreeType"), eligibleStreams: get("eligibleStreams"),
     exam: get("exam"), category: get("category"),
