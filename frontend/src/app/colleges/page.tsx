@@ -346,42 +346,50 @@ function CollegesPageContent() {
   const [totalPages, setTotalPages] = useState(1);
 
   const fetchColleges = async (searchVal = "", pageVal = 1) => {
-    setLoading(true);
-    setError(null);
+  setLoading(true);
+  setError(null);
 
-    try {
-      const token = localStorage.getItem("token");
+  try {
+    const token = localStorage.getItem("token");
 
-      const params = new URLSearchParams();
-      if (searchVal) params.append("search", searchVal);
-      params.append("page", String(pageVal));
-      params.append("pageSize", "9");
+    const params = new URLSearchParams();
+    if (searchVal) params.append("search", searchVal);
+    params.append("page", String(pageVal));
+    params.append("pageSize", "9");
 
-      const res = await axios.get(`/colleges?${params.toString()}`, {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-      });
+    const res = await axios.get(`/colleges?${params.toString()}`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
 
-      const result: CollegesApiResponse = res.data;
+    const result: CollegesApiResponse = res.data;
 
-      setColleges(result.data);
-      setIsPersonalized(result.personalized);
-      setTotalPages(result.totalPages);
+    setColleges(result.data);
+    setIsPersonalized(result.personalized);
+    setTotalPages(result.totalPages);
 
-      // Profile not complete → show modal
-      if (!result.personalized) {
+    // Profile not complete → show modal
+    // Kept in its own try/catch: a failure here shouldn't
+    // wipe out the colleges that already loaded successfully.
+    if (!result.personalized) {
+      try {
         const profileRes = await axios.get("/student/profile/status", {
           headers: token ? { Authorization: `Bearer ${token}` } : {},
         });
         const isComplete = profileRes.data?.data?.isProfileComplete;
         if (!isComplete) setShowProfileModal(true);
+      } catch (profileErr: any) {
+        console.error("Error checking profile status:", profileErr);
+        // Non-fatal: colleges are already loaded, just skip the
+        // profile-completion prompt rather than showing a full error state.
       }
-    } catch (err: any) {
-      console.error("Error fetching colleges:", err);
-      setError(err.response?.data?.message || "Failed to load colleges");
-    } finally {
-      setLoading(false);
     }
-  };
+  } catch (err: any) {
+    console.error("Error fetching colleges:", err);
+    setError(err.response?.data?.message || "Failed to load colleges");
+  } finally {
+    setLoading(false);
+  }
+};
 
   useEffect(() => {
     fetchColleges();

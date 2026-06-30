@@ -26,6 +26,7 @@ const emptyForm = {
 export default function CoursesPage() {
   const [courses, setCourses] = useState<ApiCourse[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [form, setForm] = useState(emptyForm);
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -33,23 +34,17 @@ export default function CoursesPage() {
   const [submitted, setSubmitted] = useState(false);
 
   useEffect(() => {
-  fetchCourses()
-    .then((data) => {
-      console.log("========== FETCHED COURSES ==========");
-      console.log(data);
-      console.log("====================================");
-
-      setCourses(data);
-    })
-    .catch((e) => setApiError(e.message))
-    .finally(() => setLoading(false));
-}, []);
-
-useEffect(() => {
-  console.log("========== COURSES STATE ==========");
-  console.log(courses);
-  console.log("===================================");
-}, [courses]);
+    fetchCourses()
+      .then(setCourses)
+      .catch((e: unknown) => {
+        setLoadError(
+          e instanceof Error
+            ? e.message
+            : "Failed to load courses. Please refresh the page and try again."
+        );
+      })
+      .finally(() => setLoading(false));
+  }, []);
 
   const toggleStream = (s: Stream) => {
     setForm((prev) => ({
@@ -78,7 +73,7 @@ useEffect(() => {
 
     try {
       const newCourse = await apiCreateCourse({
-        name: form.name,
+        name: form.name.trim(),
         degreeType: form.degreeType,
         eligibleStreamCodes: form.eligibleStreams,
       });
@@ -86,8 +81,12 @@ useEffect(() => {
       setForm(emptyForm);
       setSubmitted(true);
       setTimeout(() => setSubmitted(false), 3000);
-    } catch (err: any) {
-      setApiError(err.message);
+    } catch (err: unknown) {
+      setApiError(
+        err instanceof Error
+          ? err.message
+          : "Failed to add the course. Please try again."
+      );
     } finally {
       setSubmitting(false);
     }
@@ -98,106 +97,116 @@ useEffect(() => {
       <AdminHeader title="Courses" subtitle="Define courses and their eligible streams" />
 
       <div className="flex-1 p-8 space-y-8">
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
-          <h2 className="text-base font-semibold text-gray-800 mb-6 flex items-center gap-2">
-            <Plus size={18} className="text-[#2563EB]" />
-            Add New Course
-          </h2>
 
-          {submitted && (
-            <div className="mb-4 flex items-center gap-2 bg-green-50 text-green-700 border border-green-200 rounded-xl px-4 py-3 text-sm font-medium">
-              <CheckCircle2 size={16} /> Course added successfully!
-            </div>
-          )}
+        {/* Initial load failure */}
+        {loadError && (
+          <div className="flex items-center gap-2 bg-red-50 text-red-600 border border-red-200 rounded-xl px-4 py-3 text-sm font-medium">
+            <AlertCircle size={16} className="flex-shrink-0" /> {loadError}
+          </div>
+        )}
 
-          {apiError && (
-            <div className="mb-4 flex items-center gap-2 bg-red-50 text-red-600 border border-red-200 rounded-xl px-4 py-3 text-sm font-medium">
-              <AlertCircle size={16} /> {apiError}
-            </div>
-          )}
+        {!loadError && (
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+            <h2 className="text-base font-semibold text-gray-800 mb-6 flex items-center gap-2">
+              <Plus size={18} className="text-[#2563EB]" />
+              Add New Course
+            </h2>
 
-          <form onSubmit={handleSubmit} className="space-y-5">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-              <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                  Course Name <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  placeholder="e.g. B.Sc (Hons.) Mathematics"
-                  value={form.name}
-                  onChange={(e) => setForm({ ...form, name: e.target.value })}
-                  className={`w-full px-4 py-2.5 rounded-xl border text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] transition-all ${
-                    errors.name ? "border-red-400 bg-red-50" : "border-gray-200 bg-gray-50"
-                  }`}
-                />
-                {errors.name && <p className="text-xs text-red-500 mt-1">{errors.name}</p>}
+            {submitted && (
+              <div className="mb-4 flex items-center gap-2 bg-green-50 text-green-700 border border-green-200 rounded-xl px-4 py-3 text-sm font-medium">
+                <CheckCircle2 size={16} /> Course added successfully!
               </div>
+            )}
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                  Degree Type <span className="text-red-500">*</span>
-                </label>
-                <select
-                  value={form.degreeType}
-                  onChange={(e) => setForm({ ...form, degreeType: e.target.value as DegreeType })}
-                  className="w-full px-4 py-2.5 rounded-xl border border-gray-200 bg-gray-50 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] transition-all"
-                >
-                  {DEGREE_TYPES.map((d) => (
-                    <option key={d} value={d}>{d}</option>
-                  ))}
-                </select>
+            {apiError && (
+              <div className="mb-4 flex items-center gap-2 bg-red-50 text-red-600 border border-red-200 rounded-xl px-4 py-3 text-sm font-medium">
+                <AlertCircle size={16} className="flex-shrink-0" /> {apiError}
               </div>
+            )}
 
-              <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Eligible Streams <span className="text-red-500">*</span>
-                </label>
-                <div className="flex flex-wrap gap-2">
-                  {STREAMS.map((s) => (
-                    <button
-                      key={s}
-                      type="button"
-                      onClick={() => toggleStream(s)}
-                      className={`px-3.5 py-1.5 rounded-xl text-sm font-medium border transition-all ${
-                        form.eligibleStreams.includes(s)
-                          ? "bg-[#2563EB] text-white border-[#2563EB]"
-                          : "bg-gray-50 text-gray-600 border-gray-200 hover:border-[#2563EB]/40"
-                      }`}
-                    >
-                      {s === "PCM" || s === "PCB" ? s : STREAM_LABELS[s].split(" ")[0]}
-                    </button>
-                  ))}
+            <form onSubmit={handleSubmit} className="space-y-5">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                    Course Name <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="e.g. B.Sc (Hons.) Mathematics"
+                    value={form.name}
+                    onChange={(e) => setForm({ ...form, name: e.target.value })}
+                    className={`w-full px-4 py-2.5 rounded-xl border text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] transition-all ${
+                      errors.name ? "border-red-400 bg-red-50" : "border-gray-200 bg-gray-50"
+                    }`}
+                  />
+                  {errors.name && <p className="text-xs text-red-500 mt-1">{errors.name}</p>}
                 </div>
-                {form.eligibleStreams.length > 0 && (
-                  <div className="mt-2 flex flex-wrap gap-1.5">
-                    {form.eligibleStreams.map((s) => (
-                      <span
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                    Degree Type <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    value={form.degreeType}
+                    onChange={(e) => setForm({ ...form, degreeType: e.target.value as DegreeType })}
+                    className="w-full px-4 py-2.5 rounded-xl border border-gray-200 bg-gray-50 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] transition-all"
+                  >
+                    {DEGREE_TYPES.map((d) => (
+                      <option key={d} value={d}>{d}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Eligible Streams <span className="text-red-500">*</span>
+                  </label>
+                  <div className="flex flex-wrap gap-2">
+                    {STREAMS.map((s) => (
+                      <button
                         key={s}
-                        className="inline-flex items-center gap-1 px-2.5 py-0.5 bg-blue-50 text-blue-700 rounded-lg text-xs font-medium"
+                        type="button"
+                        onClick={() => toggleStream(s)}
+                        className={`px-3.5 py-1.5 rounded-xl text-sm font-medium border transition-all ${
+                          form.eligibleStreams.includes(s)
+                            ? "bg-[#2563EB] text-white border-[#2563EB]"
+                            : "bg-gray-50 text-gray-600 border-gray-200 hover:border-[#2563EB]/40"
+                        }`}
                       >
-                        {STREAM_LABELS[s]}
-                        <button type="button" onClick={() => toggleStream(s)}>
-                          <X size={11} />
-                        </button>
-                      </span>
+                        {s === "PCM" || s === "PCB" ? s : STREAM_LABELS[s].split(" ")[0]}
+                      </button>
                     ))}
                   </div>
-                )}
-                {errors.streams && <p className="text-xs text-red-500 mt-1">{errors.streams}</p>}
+                  {form.eligibleStreams.length > 0 && (
+                    <div className="mt-2 flex flex-wrap gap-1.5">
+                      {form.eligibleStreams.map((s) => (
+                        <span
+                          key={s}
+                          className="inline-flex items-center gap-1 px-2.5 py-0.5 bg-blue-50 text-blue-700 rounded-lg text-xs font-medium"
+                        >
+                          {STREAM_LABELS[s]}
+                          <button type="button" onClick={() => toggleStream(s)}>
+                            <X size={11} />
+                          </button>
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                  {errors.streams && <p className="text-xs text-red-500 mt-1">{errors.streams}</p>}
+                </div>
               </div>
-            </div>
 
-            <button
-              type="submit"
-              disabled={submitting}
-              className="flex items-center gap-2 px-6 py-2.5 bg-[#2563EB] hover:bg-[#1D4ED8] disabled:opacity-60 disabled:cursor-not-allowed text-white text-sm font-semibold rounded-xl transition-colors shadow-sm"
-            >
-              {submitting && <Loader2 size={15} className="animate-spin" />}
-              Add Course
-            </button>
-          </form>
-        </div>
+              <button
+                type="submit"
+                disabled={submitting}
+                className="flex items-center gap-2 px-6 py-2.5 bg-[#2563EB] hover:bg-[#1D4ED8] disabled:opacity-60 disabled:cursor-not-allowed text-white text-sm font-semibold rounded-xl transition-colors shadow-sm"
+              >
+                {submitting && <Loader2 size={15} className="animate-spin" />}
+                Add Course
+              </button>
+            </form>
+          </div>
+        )}
 
         {loading ? (
           <div className="flex items-center justify-center py-12 text-gray-400 gap-2">
@@ -218,10 +227,7 @@ useEffect(() => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-50">
-                  {courses.map((c) => {
-  console.log("Rendering course:", c);
-
-  return (
+                  {courses.map((c) => (
                     <tr key={c.course_id} className="hover:bg-gray-50 transition-colors">
                       <td className="px-6 py-3.5 font-medium text-gray-800">{c.course_name}</td>
                       <td className="px-6 py-3.5">
@@ -242,8 +248,7 @@ useEffect(() => {
                         </div>
                       </td>
                     </tr>
-  );
-})}
+                  ))}
                 </tbody>
               </table>
             </div>

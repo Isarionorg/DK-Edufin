@@ -2,7 +2,7 @@
 
 import { Bell, LogOut, ArrowLeft } from "lucide-react";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";  // ← add useRouter
+import { usePathname, useRouter } from "next/navigation";
 
 interface AdminHeaderProps {
   title: string;
@@ -11,11 +11,18 @@ interface AdminHeaderProps {
 
 export default function AdminHeader({ title, subtitle }: AdminHeaderProps) {
   const pathname = usePathname();
-  const router = useRouter();  // ← add this
+  const router = useRouter();
 
-  const handleLogout = () => {  // ← add this
-    localStorage.removeItem('dk_admin_token');
-    router.replace('/admin/login');
+  const handleLogout = () => {
+    try {
+      localStorage.removeItem('dk_admin_token');
+    } catch (err) {
+      console.error('Failed to clear admin session:', err);
+      // Even if storage couldn't be cleared, still redirect to login
+      // so the admin isn't stuck on the page.
+    } finally {
+      router.replace('/admin/login');
+    }
   };
 
   return (

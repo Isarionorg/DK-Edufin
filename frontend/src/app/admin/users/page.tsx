@@ -145,7 +145,7 @@ export default function UsersPage() {
   useEffect(() => {
     fetchUsers()
       .then(setUsers)
-      .catch(() => setError('Failed to load users.'))
+      .catch((e) => setError(e?.message || 'Failed to load users.'))
       .finally(() => setLoading(false));
   }, []);
 

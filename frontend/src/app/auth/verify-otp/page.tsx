@@ -12,35 +12,44 @@ export default function VerifyOTPPage() {
   const [error, setError] = useState("");
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError("");
-    setLoading(true);
+  e.preventDefault();
+  setError("");
+  setLoading(true);
 
-    try {
-      const email = sessionStorage.getItem("verifyEmail");
-      if (!email) {
-        setError("E-mail not found. Please register first.");
-        router.push("/auth/register");
-        return;
-      }
+  let email: string | null = null;
+  try {
+    email = sessionStorage.getItem("verifyEmail");
+  } catch {
+    setError("Unable to access browser storage. Please enable cookies/storage and try again.");
+    setLoading(false);
+    return;
+  }
 
-      const response = await axiosInstance.post("/auth/verify-otp", {
-        email,
-        otp,
-      });
+  if (!email) {
+    setError("E-mail not found. Please register first.");
+    setLoading(false);
+    router.push("/auth/register");
+    return;
+  }
 
-      if (response.data.success) {
-        sessionStorage.removeItem("verifyEmail");
-        router.push("/auth/login");
-      } else {
-        setError(response.data.message || "OTP verification failed.");
-      }
-    } catch (err: any) {
-      setError(err.response?.data?.message || "Failed to verify OTP. Please try again.");
-    } finally {
-      setLoading(false);
+  try {
+    const response = await axiosInstance.post("/auth/verify-otp", {
+      email,
+      otp,
+    });
+
+    if (response.data.success) {
+      sessionStorage.removeItem("verifyEmail");
+      router.push("/auth/login");
+    } else {
+      setError(response.data.message || "OTP verification failed.");
     }
-  };
+  } catch (err: any) {
+    setError(err.response?.data?.message || "Failed to verify OTP. Please try again.");
+  } finally {
+    setLoading(false);
+  }
+};
 
   return (
     <main className="min-h-screen bg-linear-to-br from-blue-50 via-white to-blue-50 flex items-center justify-center px-4 py-12">
