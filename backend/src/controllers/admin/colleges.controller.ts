@@ -3,7 +3,7 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "../../lib/prisma";
 
 const VALID_TYPES = ["Government", "Private", "Deemed"];
-const VALID_NAAC  = ["A+", "A", "B+", "B", "C", ""];
+const VALID_NAAC  = ["A++", "A+", "A", "B++", "B+", "B", "C"];
 
 export async function getColleges(req: Request, res: Response) {
   try {
