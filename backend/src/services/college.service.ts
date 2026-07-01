@@ -44,6 +44,7 @@ interface RecommendedCollege {
   state: string;
   website_url: string | null;
   is_partner: boolean;
+  naac_grade: string | null;
   courses: RecommendedCourse[];
   match_score: number;
   best_cutoff_rank: number | null;
@@ -176,6 +177,7 @@ export const getRecommendedColleges = async (
         state: college.state ?? '',
         website_url: college.website_url ?? null,
         is_partner: college.is_partner ?? false,
+        naac_grade: college.naac_grade ?? null,
         courses: [],
         match_score: 0,
         best_cutoff_rank: null,
@@ -358,6 +360,7 @@ export const getAllColleges = async (filters: CollegeFilters = {}) => {
     state: college.state ?? '',
     website_url: college.website_url ?? null,
     is_partner: college.is_partner ?? false,
+    naac_grade: college.naac_grade ?? null,
     courses: college.college_courses
       .filter(cc => cc.courses !== null)
       .map(cc => ({
@@ -411,6 +414,7 @@ export const getCollegeById = async (collegeId: number) => {
     website_url: college.website_url,
     established_year: college.established_year,
     is_partner: college.is_partner,
+    naac_grade: college.naac_grade,
     courses: college.college_courses
       .filter(cc => cc.courses !== null)
       .map(cc => ({

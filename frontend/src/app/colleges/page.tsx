@@ -28,6 +28,7 @@ export interface College {
   state: string;
   website_url: string | null;
   is_partner: boolean;
+  naac_grade: string | null;
   courses: Course[];
   match_score: number;
 }
@@ -45,6 +46,16 @@ export interface CollegesApiResponse {
 // ─────────────────────────────────────────────
 // COLLEGE CARD
 // ─────────────────────────────────────────────
+
+function naacBadgeStyle(grade: string | null): string {
+  if (!grade) return "";
+  const g = grade.toUpperCase();
+  if (g === "A++" || g === "A+") return "bg-green-100 text-green-700";
+  if (g === "A") return "bg-emerald-100 text-emerald-700";
+  if (["B++", "B+", "B"].includes(g)) return "bg-amber-100 text-amber-700";
+  if (g === "C") return "bg-red-100 text-red-700";
+  return "bg-gray-100 text-gray-600";
+}
 
 function CollegeCard({
   college,
@@ -82,9 +93,21 @@ function CollegeCard({
 
       <div className="p-5 space-y-3">
         {/* LOCATION */}
-        <span className="text-gray-500 text-xs flex items-center gap-1">
-          📍 {college.city}, {college.state}
-        </span>
+        {/* LOCATION + NAAC */}
+        <div className="flex items-center justify-between gap-2">
+          <span className="text-gray-500 text-xs flex items-center gap-1 truncate">
+            📍 {college.city}, {college.state}
+          </span>
+          {college.naac_grade && (
+            <span
+              className={`text-xs font-bold px-2 py-0.5 rounded-lg shrink-0 ${naacBadgeStyle(
+                college.naac_grade
+              )}`}
+            >
+              NAAC {college.naac_grade}
+            </span>
+          )}
+        </div>
 
         {/* MATCH SCORE — only for personalized results */}
         {college.match_score > 0 && (
@@ -184,6 +207,9 @@ function CollegeModal({
               },
               ...(college.match_score > 0
                 ? [{ label: "Match Score", value: `${college.match_score}%` }]
+                : []),
+              ...(college.naac_grade
+                ? [{ label: "NAAC Grade", value: college.naac_grade }]
                 : []),
               ...(college.website_url
                 ? [{ label: "Website", value: college.website_url }]

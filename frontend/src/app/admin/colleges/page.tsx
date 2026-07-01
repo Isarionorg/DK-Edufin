@@ -16,7 +16,7 @@ import {
 } from "@/lib/adminapi";
 
 const COLLEGE_TYPES: CollegeType[] = ["Government", "Private", "Deemed"];
-const NAAC_GRADES = ["A+", "A", "B+", "B", "C"];
+const NAAC_GRADES = ["A++","A+", "A","B++","B+", "B", "C"];
 
 const INDIAN_STATES = [
   "Andhra Pradesh","Arunachal Pradesh","Assam","Bihar","Chhattisgarh","Goa","Gujarat",
