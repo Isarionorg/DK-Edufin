@@ -68,13 +68,17 @@ function validateRow(row: BulkRow): string | null {
     return `Invalid academicYear: '${row.academicYear}'. Must be a valid year.`;
   }
 
-  const hasScore = row.cutoffScore && !isNaN(Number(row.cutoffScore));
-  const hasRank = row.cutoffRank && !isNaN(Number(row.cutoffRank));
-  if (!hasScore && !hasRank) {
-    return "At least one of cutoffScore or cutoffRank must be a valid number";
-  }
+  // AFTER
+const hasScore = row.cutoffScore && !isNaN(Number(row.cutoffScore));
+const hasRank = row.cutoffRank && !isNaN(Number(row.cutoffRank));
+if (!hasScore && !hasRank) {
+  return "At least one of cutoffScore or cutoffRank must be a valid number";
+}
+if (hasScore && hasRank) {
+  return "Only one of cutoffScore or cutoffRank can be provided, not both";
+}
 
-  return null;
+return null;
 }
 
 // ── Normalize Prisma / DB errors to user-friendly messages ───────────────────
