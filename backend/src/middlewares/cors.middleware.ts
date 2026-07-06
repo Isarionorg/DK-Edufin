@@ -6,7 +6,9 @@ const allowedOrigins = process.env.ALLOWED_ORIGINS
   : [
       'https://dk-edufin.vercel.app',
       'https://dkedufin.com',
-      'https://dkedufin.org'
+      'https://www.dkedufin.com',
+      'https://dkedufin.org',
+      'https://www.dkedufin.org',
     ];
 
 
