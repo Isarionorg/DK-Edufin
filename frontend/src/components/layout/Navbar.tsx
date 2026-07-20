@@ -30,11 +30,11 @@ export default function Navbar() {
 
   // Async handling for logout to prevent race conditions
   const handleLogout = () => {
-  setMenuOpen(false);
-  setDropdownOpen(false);
-  logout(); // clears state + localStorage
-  router.push("/");
-};
+    setMenuOpen(false);
+    setDropdownOpen(false);
+    logout(); // clears state + localStorage
+    router.push("/");
+  };
 
   const getInitials = () => {
     if (user?.name) {
@@ -53,20 +53,20 @@ export default function Navbar() {
 
   return (
     <nav className="w-full bg-white/80 backdrop-blur-md border-b border-blue-100 sticky top-0 z-50 shadow-sm">
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16">
+      <div className="max-w-7xl mx-auto px-6 lg:px-10">
+        <div className="flex items-center justify-between h-28">
 
           {/* Logo */}
-          <Link href="/" className="flex items-center gap-2">
-            <Image
-              src="/DK_Edufin_logo.png"
-              alt="DKEdufin Logo"
-              width={120}
-              height={40}
-              priority
-            />
-          </Link>
-
+          <Link href="/" className="flex items-center">
+  <Image
+  src="/DK_Edufin_logo.jpeg"
+  alt="DKEdufin Logo"
+  width={380}
+  height={120}
+  priority
+  className="h-24 w-auto object-contain"
+/>
+</Link>
           {/* Desktop Nav Links */}
           <div className="hidden md:flex items-center gap-8">
             <Link
@@ -146,19 +146,16 @@ export default function Navbar() {
             aria-label="Toggle menu"
           >
             <span
-              className={`block w-6 h-0.5 bg-blue-600 transition-all duration-300 ${
-                menuOpen ? "rotate-45 translate-y-2" : ""
-              }`}
+              className={`block w-6 h-0.5 bg-blue-600 transition-all duration-300 ${menuOpen ? "rotate-45 translate-y-2" : ""
+                }`}
             />
             <span
-              className={`block w-6 h-0.5 bg-blue-600 transition-all duration-300 ${
-                menuOpen ? "opacity-0" : ""
-              }`}
+              className={`block w-6 h-0.5 bg-blue-600 transition-all duration-300 ${menuOpen ? "opacity-0" : ""
+                }`}
             />
             <span
-              className={`block w-6 h-0.5 bg-blue-600 transition-all duration-300 ${
-                menuOpen ? "-rotate-45 -translate-y-2" : ""
-              }`}
+              className={`block w-6 h-0.5 bg-blue-600 transition-all duration-300 ${menuOpen ? "-rotate-45 -translate-y-2" : ""
+                }`}
             />
           </button>
         </div>

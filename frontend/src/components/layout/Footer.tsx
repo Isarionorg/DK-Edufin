@@ -12,7 +12,7 @@ export default function Footer() {
           {/* Brand */}
           <div className="lg:col-span-1">
             <Link href="/" className="text-2xl font-bold tracking-tight">
-              DK<span className="text-blue-400">Edufin</span>
+              DK<span className="text-blue-400">EduFin</span>
             </Link>
             <p className="text-gray-400 text-sm mt-3 leading-relaxed">
               Helping school students find the right college with honest,
@@ -120,7 +120,7 @@ export default function Footer() {
         {/* Divider */}
         <div className="border-t border-gray-800 pt-6 flex flex-col sm:flex-row items-center justify-between gap-4">
           <p className="text-gray-500 text-sm">
-            © {new Date().getFullYear()} DKEdufin. All rights reserved. Built with ❤️ for students.
+            © {new Date().getFullYear()} DK EduFin. All rights reserved. Built with ❤️ for students.
           </p>
           <div className="flex gap-6">
             {["Privacy Policy", "Terms of Service"].map((item) => (
