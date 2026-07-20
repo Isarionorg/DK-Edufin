@@ -9,6 +9,7 @@ interface BulkRow {
   state: string;
   website?: string;
   isPartner: string;
+  naacGrade?: string;
   courseName: string;
   degreeType: string;
   eligibleStreams: string;
@@ -19,6 +20,15 @@ interface BulkRow {
   academicYear: string;
   roundNumber: string;
   rowIndex: number;
+}
+
+const VALID_NAAC_GRADES = ["A++", "A+", "A", "B++", "B+", "B", "C", "D"];
+
+function normalizeNaacGrade(val?: string): string | null {
+  if (!val) return null;
+  const trimmed = val.trim().toUpperCase();
+  if (!trimmed) return null;
+  return VALID_NAAC_GRADES.includes(trimmed) ? trimmed : null;
 }
 
 const STREAM_ALIASES: Record<string, string> = {
@@ -58,13 +68,17 @@ function validateRow(row: BulkRow): string | null {
     return `Invalid academicYear: '${row.academicYear}'. Must be a valid year.`;
   }
 
-  const hasScore = row.cutoffScore && !isNaN(Number(row.cutoffScore));
-  const hasRank = row.cutoffRank && !isNaN(Number(row.cutoffRank));
-  if (!hasScore && !hasRank) {
-    return "At least one of cutoffScore or cutoffRank must be a valid number";
-  }
+  // AFTER
+const hasScore = row.cutoffScore && !isNaN(Number(row.cutoffScore));
+const hasRank = row.cutoffRank && !isNaN(Number(row.cutoffRank));
+if (!hasScore && !hasRank) {
+  return "At least one of cutoffScore or cutoffRank must be a valid number";
+}
+if (hasScore && hasRank) {
+  return "Only one of cutoffScore or cutoffRank can be provided, not both";
+}
 
-  return null;
+return null;
 }
 
 // ── Normalize Prisma / DB errors to user-friendly messages ───────────────────
@@ -152,6 +166,7 @@ export async function bulkUpload(req: Request, res: Response) {
               state: row.state.trim(),
               website_url: row.website?.trim() || null,
               is_partner: parseIsPartner(row.isPartner),
+              naac_grade: normalizeNaacGrade(row.naacGrade),
             },
           });
           collegeByName.set(collegeKey, college);

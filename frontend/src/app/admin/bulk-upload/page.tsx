@@ -25,14 +25,15 @@ const MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024;
 const MAX_ROWS = 5000;
 
 const TEMPLATE_HEADERS = [
-  "collegeName","collegeType","city","state","website","isPartner",
+  "collegeName","collegeType","city","state","website","naacGrade","isPartner",
   "courseName","degreeType","eligibleStreams","exam","category",
   "cutoffScore","cutoffRank","academicYear","roundNumber",
 ];
 const TEMPLATE_SAMPLE = [
-  "Delhi University","Government","New Delhi","Delhi","https://du.ac.in","yes",
+  "Delhi University","Government","New Delhi","Delhi","https://du.ac.in","A++","yes",
   "B.Sc (Hons.) Mathematics","UG","PCM|PCB","CUET","UR","680","","2025","1",
 ];
+
 
 function validateRow(row: Record<string, string>, index: number, validExams: string[]): ParsedRow {
   const errors: string[] = [];
@@ -71,15 +72,18 @@ function validateRow(row: Record<string, string>, index: number, validExams: str
   const round = Number(get("roundNumber"));
   if (!round || round < 1) errors.push("roundNumber must be >= 1");
 
-  const score = get("cutoffScore");
-  const rank = get("cutoffRank");
-  if (!score && !rank) errors.push("At least one of cutoffScore or cutoffRank is required");
-  if (score && isNaN(Number(score))) errors.push("cutoffScore must be a number");
-  if (rank && isNaN(Number(rank))) errors.push("cutoffRank must be a number");
+  // AFTER
+const score = get("cutoffScore");
+const rank = get("cutoffRank");
+if (!score && !rank) errors.push("At least one of cutoffScore or cutoffRank is required");
+if (score && rank) errors.push("Only one of cutoffScore or cutoffRank can be provided, not both");
+if (score && isNaN(Number(score))) errors.push("cutoffScore must be a number");
+if (rank && isNaN(Number(rank))) errors.push("cutoffRank must be a number");
 
   return {
     collegeName: get("collegeName"), collegeType: get("collegeType"),
     city: get("city"), state: get("state"), website: get("website"),
+    naacGrade: get("naacGrade") || undefined,
     isPartner: get("isPartner"), courseName: get("courseName"),
     degreeType: get("degreeType"), eligibleStreams: get("eligibleStreams"),
     exam: get("exam"), category: get("category"),
