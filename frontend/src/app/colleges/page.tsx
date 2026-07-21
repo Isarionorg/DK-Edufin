@@ -92,7 +92,6 @@ function CollegeCard({
       </div>
 
       <div className="p-5 space-y-3">
-        {/* LOCATION */}
         {/* LOCATION + NAAC */}
         <div className="flex items-center justify-between gap-2">
           <span className="text-gray-500 text-xs flex items-center gap-1 truncate">
@@ -164,7 +163,6 @@ function CollegeModal({
   const preferredCourses = college.courses.filter(c => c.is_preferred);
   const otherCourses = college.courses.filter(c => !c.is_preferred);
 
-  // Reusable cutoff label — same logic for both preferred and other courses
   const cutoffLabel = (course: Course) => {
     if (course.cutoff_value) return `Cutoff: ${course.cutoff_value}`;
     if (course.cutoff_rank) return `Rank: ${course.cutoff_rank}`;
@@ -253,7 +251,7 @@ function CollegeModal({
             </div>
           )}
 
-          {/* OTHER COURSES — same card layout as preferred, different colours */}
+          {/* OTHER COURSES */}
           {otherCourses.length > 0 && (
             <div>
               <p className="text-xs text-gray-400 mb-2 font-semibold uppercase tracking-wide">
@@ -370,71 +368,88 @@ function CollegesPageContent() {
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const [locationFilter, setLocationFilter] = useState("");
+  const [availableLocations, setAvailableLocations] = useState<string[]>([]);
 
-  const fetchColleges = async (searchVal = "", pageVal = 1) => {
-  setLoading(true);
-  setError(null);
+  const fetchColleges = async (searchVal = "", pageVal = 1, locationVal = "") => {
+    setLoading(true);
+    setError(null);
 
-  try {
-    const token = localStorage.getItem("token");
+    try {
+      const token = localStorage.getItem("token");
 
-    const params = new URLSearchParams();
-    if (searchVal) params.append("search", searchVal);
-    params.append("page", String(pageVal));
-    params.append("pageSize", "9");
+      const params = new URLSearchParams();
+      if (searchVal) params.append("search", searchVal);
+      if (locationVal) params.append("state", locationVal);
+      params.append("page", String(pageVal));
+      params.append("pageSize", "9");
 
-    const res = await axios.get(`/colleges?${params.toString()}`, {
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
-    });
+      const res = await axios.get(`/colleges?${params.toString()}`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
 
-    const result: CollegesApiResponse = res.data;
+      const result: CollegesApiResponse = res.data;
 
-    setColleges(result.data);
-    setIsPersonalized(result.personalized);
-    setTotalPages(result.totalPages);
+      setColleges(result.data);
+      setIsPersonalized(result.personalized);
+      setTotalPages(result.totalPages);
 
-    // Profile not complete → show modal
-    // Kept in its own try/catch: a failure here shouldn't
-    // wipe out the colleges that already loaded successfully.
-    if (!result.personalized) {
-      try {
-        const profileRes = await axios.get("/student/profile/status", {
-          headers: token ? { Authorization: `Bearer ${token}` } : {},
-        });
-        const isComplete = profileRes.data?.data?.isProfileComplete;
-        if (!isComplete) setShowProfileModal(true);
-      } catch (profileErr: any) {
-        console.error("Error checking profile status:", profileErr);
-        // Non-fatal: colleges are already loaded, just skip the
-        // profile-completion prompt rather than showing a full error state.
+      // Profile not complete → show modal
+      if (!result.personalized) {
+        try {
+          const profileRes = await axios.get("/student/profile/status", {
+            headers: token ? { Authorization: `Bearer ${token}` } : {},
+          });
+          const isComplete = profileRes.data?.data?.isProfileComplete;
+          if (!isComplete) setShowProfileModal(true);
+        } catch (profileErr: any) {
+          console.error("Error checking profile status:", profileErr);
+        }
       }
+    } catch (err: any) {
+      console.error("Error fetching colleges:", err);
+      setError(err.response?.data?.message || "Failed to load colleges");
+    } finally {
+      setLoading(false);
     }
-  } catch (err: any) {
-    console.error("Error fetching colleges:", err);
-    setError(err.response?.data?.message || "Failed to load colleges");
-  } finally {
-    setLoading(false);
-  }
-};
+  };
+
+  const fetchLocations = async () => {
+    try {
+      const res = await axios.get("/colleges/states");
+      const states: string[] = res.data?.data || [];
+      setAvailableLocations(states);
+    } catch (err: any) {
+      console.error("Error fetching states:", err);
+      // Non-fatal: dropdown just stays empty, colleges list still works
+    }
+  };
 
   useEffect(() => {
     fetchColleges();
+    fetchLocations();
   }, []);
 
   const handleSearch = (val: string) => {
     setSearch(val);
     setPage(1);
-    fetchColleges(val, 1);
+    fetchColleges(val, 1, locationFilter);
+  };
+
+  const handleLocationChange = (val: string) => {
+    setLocationFilter(val);
+    setPage(1);
+    fetchColleges(search, 1, val);
   };
 
   const handlePageChange = (newPage: number) => {
     setPage(newPage);
-    fetchColleges(search, newPage);
+    fetchColleges(search, newPage, locationFilter);
   };
 
   const handleProfileSuccess = () => {
     setShowProfileModal(false);
-    fetchColleges();
+    fetchColleges(search, page, locationFilter);
   };
 
   return (
@@ -460,15 +475,27 @@ function CollegesPageContent() {
               : "Complete your profile to get personalized recommendations."}
           </p>
 
-          {/* SEARCH */}
-          <div className="max-w-md mx-auto">
+          {/* SEARCH + LOCATION FILTER */}
+          <div className="max-w-md mx-auto flex flex-col sm:flex-row gap-3">
             <input
               type="text"
               placeholder="Search colleges..."
               value={search}
               onChange={(e) => handleSearch(e.target.value)}
-              className="w-full px-5 py-3 rounded-xl text-gray-800 text-sm focus:outline-none focus:ring-2 focus:ring-white bg-white border-2 border-white/50 placeholder-gray-400 shadow-md"
+              className="flex-1 px-5 py-3 rounded-xl text-gray-800 text-sm focus:outline-none focus:ring-2 focus:ring-white bg-white border-2 border-white/50 placeholder-gray-400 shadow-md"
             />
+            <select
+              value={locationFilter}
+              onChange={(e) => handleLocationChange(e.target.value)}
+              className="px-4 py-3 rounded-xl text-gray-800 text-sm focus:outline-none focus:ring-2 focus:ring-white bg-white border-2 border-white/50 shadow-md sm:w-48"
+            >
+              <option value="">All Locations</option>
+              {availableLocations.map((loc) => (
+                <option key={loc} value={loc}>
+                  {loc}
+                </option>
+              ))}
+            </select>
           </div>
         </div>
       </section>
@@ -480,7 +507,7 @@ function CollegesPageContent() {
             {Array.from({ length: 6 }).map((_, i) => <SkeletonCard key={i} />)}
           </div>
         ) : error ? (
-          <ErrorState message={error} onRetry={() => fetchColleges(search, page)} />
+          <ErrorState message={error} onRetry={() => fetchColleges(search, page, locationFilter)} />
         ) : colleges.length === 0 ? (
           <EmptyState />
         ) : (
