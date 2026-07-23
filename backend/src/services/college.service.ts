@@ -21,6 +21,7 @@ type CollegeCourseWithCutoffs = Prisma.college_coursesGetPayload<{
 
 interface CollegeFilters {
   search?: string;
+  state?: string;
   page?: number;
   pageSize?: number;
 }
@@ -63,7 +64,7 @@ export const getRecommendedColleges = async (
     throw new Error('A valid user ID is required.');
   }
 
-  const { search, page = 1, pageSize = 9 } = filters;
+  const { search, state, page = 1, pageSize = 9 } = filters;
 
   if (page < 1 || pageSize < 1) {
     throw new Error('Page and page size must be positive numbers.');
@@ -165,6 +166,12 @@ export const getRecommendedColleges = async (
     if (
       search &&
       !college.college_name.toLowerCase().includes(search.toLowerCase())
+    ) continue;
+
+    // State filter
+    if (
+      state &&
+      college.state?.toLowerCase() !== state.toLowerCase()
     ) continue;
 
     // Init college entry
@@ -323,7 +330,7 @@ export const getRecommendedColleges = async (
 // ============================================
 
 export const getAllColleges = async (filters: CollegeFilters = {}) => {
-  const { search, page = 1, pageSize = 9 } = filters;
+  const { search, state, page = 1, pageSize = 9 } = filters;
 
   if (page < 1 || pageSize < 1) {
     throw new Error('Page and page size must be positive numbers.');
@@ -332,6 +339,9 @@ export const getAllColleges = async (filters: CollegeFilters = {}) => {
   const whereClause: any = {};
   if (search) {
     whereClause.college_name = { contains: search, mode: 'insensitive' };
+  }
+  if (state) {
+    whereClause.state = { equals: state, mode: 'insensitive' };
   }
 
   const [total, colleges] = await Promise.all([
@@ -372,6 +382,20 @@ export const getAllColleges = async (filters: CollegeFilters = {}) => {
   }));
 
   return { data, total, page, pageSize, totalPages: Math.ceil(total / pageSize) };
+};
+
+// ============================================
+// DISTINCT STATES (FOR FILTER DROPDOWN)
+// ============================================
+
+export const getDistinctStates = async () => {
+  const rows = await prisma.colleges.findMany({
+    distinct: ['state'],
+    select: { state: true },
+    where: { state: { not: null } },
+    orderBy: { state: 'asc' },
+  });
+  return rows.map(r => r.state).filter(Boolean);
 };
 
 // ============================================

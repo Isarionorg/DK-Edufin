@@ -3,6 +3,7 @@ import {
   getRecommendedColleges,
   getAllColleges,
   getCollegeById,
+  getDistinctStates,
 } from "../services/college.service";
 import { AppError } from "../errors/AppError";
 
@@ -12,7 +13,7 @@ import { AppError } from "../errors/AppError";
 
 export const getColleges = async (req: Request, res: Response) => {
   try {
-    const { search, page, pageSize } = req.query;
+    const { search, page, pageSize, state } = req.query;
 
     // Validate pagination params before they reach the service
     const parsedPage     = page     ? parseInt(page as string, 10)     : undefined;
@@ -27,6 +28,7 @@ export const getColleges = async (req: Request, res: Response) => {
 
     const filters = {
       search: (search as string | undefined)?.trim() || undefined,
+      state: (state as string | undefined)?.trim() || undefined,
       page: parsedPage,
       pageSize: parsedPageSize,
     };
@@ -52,6 +54,20 @@ export const getColleges = async (req: Request, res: Response) => {
       return res.status(error.statusCode).json({ success: false, message: error.message });
     }
     return res.status(500).json({ success: false, message: "Failed to fetch colleges" });
+  }
+};
+
+// ============================================
+// GET /colleges/states
+// ============================================
+
+export const getCollegeStates = async (req: Request, res: Response) => {
+  try {
+    const states = await getDistinctStates();
+    return res.status(200).json({ success: true, data: states });
+  } catch (error: any) {
+    console.error("getCollegeStates error:", error);
+    return res.status(500).json({ success: false, message: "Failed to fetch states" });
   }
 };
 
