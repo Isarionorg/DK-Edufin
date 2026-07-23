@@ -58,15 +58,16 @@ export default function Navbar() {
 
           {/* Logo */}
           <Link href="/" className="flex items-center">
-  <Image
-  src="/DK_Edufin_logo.jpeg"
-  alt="DKEdufin Logo"
-  width={380}
-  height={120}
-  priority
-  className="h-24 w-auto object-contain"
-/>
-</Link>
+            <Image
+              src="/DK_Edufin_logo.jpeg"
+              alt="DKEdufin Logo"
+              width={380}
+              height={120}
+              priority
+              className="h-24 w-auto object-contain"
+            />
+          </Link>
+
           {/* Desktop Nav Links */}
           <div className="hidden md:flex items-center gap-8">
             <Link
@@ -74,6 +75,12 @@ export default function Navbar() {
               className="text-gray-600 hover:text-blue-600 font-medium transition-colors duration-200"
             >
               Colleges
+            </Link>
+            <Link
+              href="/testimonials"
+              className="text-gray-600 hover:text-blue-600 font-medium transition-colors duration-200"
+            >
+              Testimonials
             </Link>
             <Link
               href="/contact"
@@ -146,16 +153,19 @@ export default function Navbar() {
             aria-label="Toggle menu"
           >
             <span
-              className={`block w-6 h-0.5 bg-blue-600 transition-all duration-300 ${menuOpen ? "rotate-45 translate-y-2" : ""
-                }`}
+              className={`block w-6 h-0.5 bg-blue-600 transition-all duration-300 ${
+                menuOpen ? "rotate-45 translate-y-2" : ""
+              }`}
             />
             <span
-              className={`block w-6 h-0.5 bg-blue-600 transition-all duration-300 ${menuOpen ? "opacity-0" : ""
-                }`}
+              className={`block w-6 h-0.5 bg-blue-600 transition-all duration-300 ${
+                menuOpen ? "opacity-0" : ""
+              }`}
             />
             <span
-              className={`block w-6 h-0.5 bg-blue-600 transition-all duration-300 ${menuOpen ? "-rotate-45 -translate-y-2" : ""
-                }`}
+              className={`block w-6 h-0.5 bg-blue-600 transition-all duration-300 ${
+                menuOpen ? "-rotate-45 -translate-y-2" : ""
+              }`}
             />
           </button>
         </div>
@@ -169,6 +179,13 @@ export default function Navbar() {
               onClick={() => setMenuOpen(false)}
             >
               Colleges
+            </Link>
+            <Link
+              href="/testimonials"
+              className="text-gray-600 hover:text-blue-600 font-medium"
+              onClick={() => setMenuOpen(false)}
+            >
+              Testimonials
             </Link>
             <Link
               href="/student-form"

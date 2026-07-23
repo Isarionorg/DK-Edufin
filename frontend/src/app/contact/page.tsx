@@ -107,7 +107,7 @@ export default function ContactPage() {
           </h1>
           <p className="text-blue-100 text-lg max-w-xl mx-auto">
             Have questions about college admissions? We're just a message away.
-            DK Sir personally reviews every enquiry.
+            DK EduFin personally reviews every enquiry.
           </p>
         </div>
       </section>
@@ -149,7 +149,7 @@ export default function ContactPage() {
               </h2>
               <p className="text-gray-500 text-sm leading-relaxed mb-5">
                 Whether you need help choosing the right college, understanding
-                admission requirements, or planning your career path — DK Sir
+                admission requirements, or planning your career path — DK EduFin
                 is here to guide you personally.
               </p>
               <ul className="space-y-3">

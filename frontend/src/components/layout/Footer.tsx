@@ -61,7 +61,7 @@ export default function Footer() {
             </ul>
           </div>
 
-          {/* Streams */}
+          {/* Streams
           <div>
             <h3 className="text-sm font-bold uppercase tracking-wider text-gray-300 mb-4">
               Explore By Stream
@@ -84,7 +84,7 @@ export default function Footer() {
                 </li>
               ))}
             </ul>
-          </div>
+          </div> */}
 
           {/* Contact Info */}
           <div>

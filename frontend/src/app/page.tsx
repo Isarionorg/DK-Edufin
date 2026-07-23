@@ -139,7 +139,7 @@ export default function HomePage() {
                 Meet Your Counselor
               </div>
               <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-4">
-                Hi, I'm <span className="text-blue-500">DK Sir</span>
+                Hi, We're <span className="text-blue-500">DK EduFin</span>
               </h2>
               <p className="text-gray-500 text-base leading-relaxed max-w-xl mb-6">
                 With over 10 years of experience in college counseling, I've
@@ -199,7 +199,7 @@ export default function HomePage() {
       {/* ─── FOOTER ─── */}
       <footer className="bg-white border-t border-blue-100 py-8">
         <div className="max-w-6xl mx-auto px-4 text-center text-gray-400 text-sm">
-          © {new Date().getFullYear()} DKEdufin. All rights reserved. Built
+          © {new Date().getFullYear()} DKEduFin. All rights reserved. Built
           with ❤️ for students.
         </div>
       </footer>

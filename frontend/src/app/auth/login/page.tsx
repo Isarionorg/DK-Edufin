@@ -19,7 +19,7 @@ export default function AuthPage() {
         <div className="hidden lg:flex lg:w-1/2 bg-linear-to-br from-blue-500 to-blue-700 p-12 flex-col justify-between">
           {/* Logo */}
           <Link href="/" className="text-2xl font-bold text-white tracking-tight">
-            DK<span className="text-blue-200">Edufin</span>
+            DK<span className="text-blue-200">EduFin</span>
           </Link>
 
           {/* Centre Content */}
@@ -39,7 +39,7 @@ export default function AuthPage() {
             {/* Testimonial */}
             <div className="mt-10 bg-white/10 backdrop-blur-sm rounded-2xl p-5 border border-white/20">
               <p className="text-white text-sm leading-relaxed italic">
-                "DKEdufin helped me find the perfect college for my career goals.
+                "DKEduFin helped me find the perfect college for my career goals.
                 The guidance was honest and incredibly helpful!"
               </p>
               <div className="flex items-center gap-3 mt-4">
@@ -56,7 +56,7 @@ export default function AuthPage() {
 
           {/* Bottom */}
           <p className="text-blue-200 text-xs">
-            © {new Date().getFullYear()} DKEdufin. All rights reserved.
+            © {new Date().getFullYear()} DKEduFin. All rights reserved.
           </p>
         </div>
 
