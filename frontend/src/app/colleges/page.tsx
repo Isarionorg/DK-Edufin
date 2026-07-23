@@ -355,6 +355,26 @@ function EmptyState() {
 }
 
 // ─────────────────────────────────────────────
+// MULTIPLE ATTEMPTS BANNER
+// ─────────────────────────────────────────────
+
+function MultipleFormsBanner({ onFillAgain }: { onFillAgain: () => void }) {
+  return (
+    <div className="max-w-4xl mx-auto mb-8 bg-yellow-50 border-2 border-yellow-200 rounded-2xl px-5 py-4 flex flex-col sm:flex-row items-center justify-between gap-3">
+      <p className="text-sm text-yellow-800 font-medium text-center sm:text-left">
+        💡 <span className="font-bold">Tip:</span> You can fill the form again with different exam scores, streams, or preferences to discover more college options each time.
+      </p>
+      <button
+        onClick={onFillAgain}
+        className="shrink-0 px-5 py-2.5 bg-yellow-400 hover:bg-yellow-500 text-yellow-900 text-sm font-bold rounded-xl transition-all shadow-sm"
+      >
+        Fill Form Again →
+      </button>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────
 // MAIN PAGE CONTENT
 // ─────────────────────────────────────────────
 
@@ -502,6 +522,8 @@ function CollegesPageContent() {
 
       {/* GRID */}
       <section className="max-w-6xl mx-auto px-4 py-12">
+        <MultipleFormsBanner onFillAgain={() => setShowProfileModal(true)} />
+
         {loading ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {Array.from({ length: 6 }).map((_, i) => <SkeletonCard key={i} />)}
