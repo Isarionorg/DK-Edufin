@@ -95,7 +95,7 @@ function SupporterCard({
       className="opacity-0 translate-y-10 transition-all duration-700 ease-out"
       style={{ transitionDelay: `${index * 150}ms` }}
     >
-      <div className="bg-white rounded-3xl shadow-lg border border-blue-100 p-8 hover:shadow-xl hover:-translate-y-1 transition-all duration-300 relative overflow-hidden">
+      <div className="bg-white rounded-3xl shadow-lg border border-blue-100 p-6 sm:p-8 hover:shadow-xl hover:-translate-y-1 transition-all duration-300 relative overflow-hidden">
         <div className="absolute -top-8 -right-8 w-32 h-32 bg-blue-50 rounded-full opacity-60" />
         <div className="absolute -bottom-6 -left-6 w-24 h-24 bg-indigo-50 rounded-full opacity-40" />
 
@@ -103,24 +103,24 @@ function SupporterCard({
           "
         </div>
 
-        <p className="text-gray-600 text-base leading-relaxed mb-6 relative z-10 whitespace-pre-line">
+        <p className="text-gray-600 text-sm sm:text-base leading-relaxed mb-6 relative z-10 whitespace-pre-line">
           {testimonial.message}
         </p>
 
-        <div className="flex items-center gap-4 border-t border-blue-50 pt-5 relative z-10">
-          <div className="w-14 h-14 rounded-full overflow-hidden border-2 border-blue-300 flex-shrink-0 bg-blue-100">
+        <div className="flex items-center gap-3 sm:gap-4 border-t border-blue-50 pt-5 relative z-10 flex-wrap">
+          <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-full overflow-hidden border-2 border-blue-300 flex-shrink-0 bg-blue-100">
             <img
               src={testimonial.imageUrl}
               alt={testimonial.name}
               className="w-full h-full object-cover"
             />
           </div>
-          <div>
+          <div className="flex-1 min-w-0">
             <p className="font-bold text-gray-900 text-sm">{testimonial.name}</p>
             <p className="text-blue-600 text-xs font-semibold">{testimonial.title}</p>
             <p className="text-gray-400 text-xs">{testimonial.organization}</p>
           </div>
-          <div className="ml-auto">
+          <div className="flex-shrink-0">
             <span className="text-xs bg-blue-50 text-blue-500 font-semibold px-3 py-1 rounded-full border border-blue-100">
               ⭐ Supporter
             </span>
@@ -140,43 +140,44 @@ export default function TestimonialsPage() {
         <div className="inline-block bg-blue-100 text-blue-600 text-sm font-semibold px-4 py-1.5 rounded-full mb-6">
           🌟 Our Mission & Community
         </div>
-        <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold text-gray-900 leading-tight mb-6">
+        <h1 className="text-3xl sm:text-5xl lg:text-6xl font-extrabold text-gray-900 leading-tight mb-6">
           Voices Behind{" "}
           <span className="text-blue-500">DK EduFin</span>
         </h1>
-        <p className="text-lg sm:text-xl text-gray-500 max-w-2xl mx-auto">
+        <p className="text-base sm:text-xl text-gray-500 max-w-2xl mx-auto">
           Meet the founders and supporters who believe in making quality
           education accessible to every deserving student, regardless of
           location or background.
         </p>
       </section>
 
-      {/* ─── STICKY FOUNDERS + SCROLLABLE SUPPORTERS ─── */}
+      {/* ─── FOUNDERS SECTION ─── */}
+      {/* Mobile: stacked normally | Desktop: sticky left panel */}
       <section className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pb-20">
         <div className="flex flex-col lg:flex-row gap-8 items-start">
 
-          {/* ── LEFT: STICKY FOUNDERS PANEL ── */}
-          <div className="lg:w-1/2 lg:sticky lg:top-20">
-            <div className="bg-gradient-to-br from-blue-600 to-blue-700 rounded-3xl p-8 shadow-2xl">
+          {/* ── LEFT: FOUNDERS (sticky only on desktop) ── */}
+          <div className="w-full lg:w-1/2 lg:sticky lg:top-20">
+            <div className="bg-gradient-to-br from-blue-600 to-blue-700 rounded-3xl p-6 sm:p-8 shadow-2xl">
               {/* Label */}
-              <div className="text-center mb-8">
-                <span className="inline-block bg-white/20 text-white text-sm font-semibold px-4 py-1.5 rounded-full backdrop-blur-sm">
+              <div className="text-center mb-6 sm:mb-8">
+                <span className="inline-block bg-white/20 text-white text-sm font-semibold px-4 py-1.5 rounded-full">
                   👨‍💼 Our Founders
                 </span>
-                <h2 className="text-2xl font-bold text-white mt-3">
+                <h2 className="text-xl sm:text-2xl font-bold text-white mt-3">
                   The People Behind the Mission
                 </h2>
               </div>
 
-              {/* Founder Cards stacked inside sticky panel */}
-              <div className="space-y-6">
+              {/* Founder Cards */}
+              <div className="space-y-5">
                 {founders.map((founder) => (
                   <div
                     key={founder.id}
-                    className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-2xl p-6 hover:bg-white/15 transition-all duration-300"
+                    className="bg-white/10 border border-white/20 rounded-2xl p-5 sm:p-6 hover:bg-white/15 transition-all duration-300"
                   >
-                    {/* Person info at top */}
-                    <div className="flex items-center gap-3 mb-4">
+                    {/* Person info */}
+                    <div className="flex items-center gap-3 mb-4 flex-wrap">
                       <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-white/50 flex-shrink-0 bg-blue-200">
                         <img
                           src={founder.imageUrl}
@@ -184,7 +185,7 @@ export default function TestimonialsPage() {
                           className="w-full h-full object-cover"
                         />
                       </div>
-                      <div>
+                      <div className="flex-1 min-w-0">
                         <p className="font-bold text-white text-sm">
                           {founder.name}
                         </p>
@@ -195,20 +196,18 @@ export default function TestimonialsPage() {
                           {founder.organization}
                         </p>
                       </div>
-                      <div className="ml-auto">
-                        <span className="text-xs bg-white/20 text-white font-semibold px-2 py-1 rounded-full border border-white/30">
-                          👨‍💼 Founder
-                        </span>
-                      </div>
+                      <span className="text-xs bg-white/20 text-white font-semibold px-2 py-1 rounded-full border border-white/30 flex-shrink-0">
+                        👨‍💼 Founder
+                      </span>
                     </div>
 
-                    {/* Quote */}
+                    {/* Quote mark */}
                     <div className="text-3xl text-white/30 font-serif leading-none mb-2">
                       "
                     </div>
 
-                    {/* Message */}
-                    <p className="text-blue-50 text-sm leading-relaxed whitespace-pre-line line-clamp-6">
+                    {/* Full message — no clamp */}
+                    <p className="text-blue-50 text-sm leading-relaxed whitespace-pre-line">
                       {founder.message}
                     </p>
                   </div>
@@ -218,16 +217,16 @@ export default function TestimonialsPage() {
           </div>
 
           {/* ── RIGHT: SCROLLABLE SUPPORTERS ── */}
-          <div className="lg:w-1/2 space-y-6">
+          <div className="w-full lg:w-1/2 space-y-6">
             {/* Label */}
-            <div className="text-center mb-8">
+            <div className="text-center mb-6 sm:mb-8">
               <span className="inline-block bg-blue-100 text-blue-600 text-sm font-semibold px-4 py-1.5 rounded-full">
                 ⭐ Community Supporters
               </span>
-              <h2 className="text-2xl font-bold text-gray-900 mt-3">
+              <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mt-3">
                 Endorsed by Academic Leaders
               </h2>
-              <p className="text-gray-500 text-sm mt-2">
+              <p className="text-gray-500 text-sm mt-2 hidden lg:block">
                 Scroll to explore what our supporters say
               </p>
             </div>
@@ -239,30 +238,23 @@ export default function TestimonialsPage() {
                 index={index}
               />
             ))}
-
-            {/* Scroll indicator */}
-            <div className="text-center py-4">
-              <p className="text-gray-400 text-xs">
-                ↑ Scroll up to see founders pinned on the left
-              </p>
-            </div>
           </div>
         </div>
       </section>
 
       {/* ─── WHY THESE VOICES MATTER ─── */}
-      <section className="bg-blue-50 py-20">
+      <section className="bg-blue-50 py-16 sm:py-20">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-6">
+          <h2 className="text-2xl sm:text-4xl font-bold text-gray-900 mb-6">
             Why We Share These Voices
           </h2>
-          <p className="text-gray-600 text-lg leading-relaxed mb-10">
+          <p className="text-gray-600 text-base sm:text-lg leading-relaxed mb-8 sm:mb-10">
             DK EduFin is built on the foundation of genuine belief in
             transforming education accessibility. Our founders and supporters
             represent educators, administrators, and leaders who understand the
             challenges students face in remote areas.
           </p>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
             {[
               {
                 icon: "🎯",
@@ -301,12 +293,12 @@ export default function TestimonialsPage() {
       </section>
 
       {/* ─── CTA BANNER ─── */}
-      <section className="bg-blue-500 py-16">
+      <section className="bg-blue-500 py-14 sm:py-16">
         <div className="max-w-4xl mx-auto px-4 text-center">
-          <h2 className="text-3xl sm:text-4xl font-bold text-white mb-4">
+          <h2 className="text-2xl sm:text-4xl font-bold text-white mb-4">
             Join Hundreds of Students on Their Journey
           </h2>
-          <p className="text-blue-100 text-lg mb-8">
+          <p className="text-blue-100 text-base sm:text-lg mb-8">
             Start your college discovery today with the guidance of experts who
             truly care about your success.
           </p>
@@ -315,7 +307,7 @@ export default function TestimonialsPage() {
               <Button
                 variant="outline"
                 size="lg"
-                className="border-white text-white hover:bg-white hover:text-blue-500"
+                className="border-white text-white hover:bg-white hover:text-blue-500 w-full sm:w-auto"
               >
                 Create Free Account
               </Button>
@@ -324,7 +316,7 @@ export default function TestimonialsPage() {
               <Button
                 variant="ghost"
                 size="lg"
-                className="text-white hover:bg-blue-400"
+                className="text-white hover:bg-blue-400 w-full sm:w-auto"
               >
                 Explore Colleges →
               </Button>
