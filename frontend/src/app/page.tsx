@@ -1,6 +1,9 @@
 // app/page.tsx
+"use client";
+
 import Link from "next/link";
 import Button from "@/components/ui/Button";
+import { useEffect, useRef } from "react";
 
 const features = [
   {
@@ -41,9 +44,183 @@ const features = [
   },
 ];
 
-export default function HomePage() {
+const testimonials = [
+  {
+    id: "deepak-kapoor",
+    name: "Dr. Deepak Kapoor",
+    title: "Founder",
+    organization: "DK EduFin",
+    type: "founder" as const,
+    imageUrl: "/testimonials/deepak-kapoor.png",
+    message: `Welcome to dkedufin.org - your gateway to higher education opportunities for students from remote and underserved areas. We are a volunteer-driven initiative committed to making reputable colleges and university admissions accessible to every deserving student, regardless of location or background.`,
+  },
+  {
+    id: "mamta-kapoor",
+    name: "Dr. Mamta Kapoor",
+    title: "Founder",
+    organization: "DK EduFin",
+    type: "founder" as const,
+    imageUrl: "/testimonials/mamta-kapoor.png",
+    message: `Your location should never limit your education. We created dkedufin.org with one clear mission: to ensure that every student living in the remote areas of India has equal access to higher education. This service is entirely free of cost. No hidden fees, no marketing gimmicks - just honest guidance.`,
+  },
+  {
+    id: "pravakar-rath",
+    name: "Prof. Pravakar Rath",
+    title: "Former Pro-Vice Chancellor",
+    organization: "Mizoram University",
+    type: "supporter" as const,
+    imageUrl: "/testimonials/pravakar-rath.png",
+    message: `I am happy to know that Dr Deepak Kapoor has taken an initiative which will benefit large number of students aspiring to develop their educational career. Such an initiative is very much important and beneficial for students from far flung, rural and remote areas.`,
+  },
+  {
+    id: "vanlalzawma",
+    name: "Sd/- V. VANLALZAWMA",
+    title: "Assistant Librarian & Head, Central Library",
+    organization: "NIT Mizoram",
+    type: "supporter" as const,
+    imageUrl: "/testimonials/vanlalzawma.png",
+    message: `Heartiest congratulations on the launch of DKEDUFIN.ORG! This initiative to create a dedicated platform specifically targeting students from remote areas is truly commendable. DKEDUFIN.ORG will undoubtedly serve as a beacon of hope and opportunity for countless young minds.`,
+  },
+];
+
+// Double the array for seamless infinite scroll
+const doubled = [...testimonials, ...testimonials];
+
+function TestimonialCard({ t }: { t: typeof testimonials[0] }) {
+  const isFounder = t.type === "founder";
+
   return (
-    <main className="min-h-screen bg-linear-to-b from-blue-50 to-white">
+    <div
+      className={`flex-shrink-0 w-80 sm:w-96 rounded-3xl p-6 mx-3 relative overflow-hidden transition-all duration-300 hover:-translate-y-1 hover:shadow-2xl ${
+        isFounder
+          ? "bg-gradient-to-br from-blue-600 to-blue-800 border-2 border-blue-400 shadow-xl shadow-blue-200"
+          : "bg-white border border-gray-100 shadow-lg"
+      }`}
+    >
+      {/* Decorative blob */}
+      {isFounder && (
+        <div className="absolute -bottom-6 -right-6 w-28 h-28 bg-white/10 rounded-full" />
+      )}
+      {!isFounder && (
+        <div className="absolute -bottom-6 -right-6 w-28 h-28 bg-blue-50 rounded-full opacity-60" />
+      )}
+
+      {/* TOP ROW: Photo + Name + Badge */}
+      <div className="flex items-start justify-between mb-5 relative z-10">
+        {/* Left: Photo + Name */}
+        <div className="flex items-center gap-3">
+          <div
+            className={`w-14 h-14 rounded-full overflow-hidden border-2 flex-shrink-0 ${
+              isFounder ? "border-white/60" : "border-blue-200"
+            } bg-blue-100`}
+          >
+            <img
+              src={t.imageUrl}
+              alt={t.name}
+              className="w-full h-full object-cover"
+            />
+          </div>
+          <div>
+            <p
+              className={`font-bold text-sm leading-tight ${
+                isFounder ? "text-white" : "text-gray-900"
+              }`}
+            >
+              {t.name}
+            </p>
+            <p
+              className={`text-xs font-semibold mt-0.5 ${
+                isFounder ? "text-blue-200" : "text-blue-600"
+              }`}
+            >
+              {t.title}
+            </p>
+            <p
+              className={`text-xs mt-0.5 ${
+                isFounder ? "text-blue-300" : "text-gray-400"
+              }`}
+            >
+              {t.organization}
+            </p>
+          </div>
+        </div>
+
+        {/* Right: Badge */}
+        <span
+          className={`text-xs font-bold px-2.5 py-1 rounded-full flex-shrink-0 ${
+            isFounder
+              ? "bg-white/20 text-white border border-white/30"
+              : "bg-blue-50 text-blue-500 border border-blue-100"
+          }`}
+        >
+          {isFounder ? "👨‍💼 Founder" : "⭐ Supporter"}
+        </span>
+      </div>
+
+      {/* Quote mark */}
+      <div
+        className={`text-4xl font-serif leading-none mb-2 relative z-10 ${
+          isFounder ? "text-white/30" : "text-blue-200"
+        }`}
+      >
+        "
+      </div>
+
+      {/* Message */}
+      <p
+        className={`text-sm leading-relaxed relative z-10 ${
+          isFounder ? "text-blue-50" : "text-gray-600"
+        }`}
+      >
+        {t.message}
+      </p>
+    </div>
+  );
+}
+
+export default function HomePage() {
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  // Infinite auto-scroll
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+
+    let animationId: number;
+    let speed = 0.6;
+
+    const scroll = () => {
+      if (!el) return;
+      el.scrollLeft += speed;
+
+      // When we've scrolled halfway (one full set), reset to start
+      if (el.scrollLeft >= el.scrollWidth / 2) {
+        el.scrollLeft = 0;
+      }
+
+      animationId = requestAnimationFrame(scroll);
+    };
+
+    animationId = requestAnimationFrame(scroll);
+
+    // Pause on hover
+    const pause = () => cancelAnimationFrame(animationId);
+    const resume = () => {
+      animationId = requestAnimationFrame(scroll);
+    };
+
+    el.addEventListener("mouseenter", pause);
+    el.addEventListener("mouseleave", resume);
+
+    return () => {
+      cancelAnimationFrame(animationId);
+      el.removeEventListener("mouseenter", pause);
+      el.removeEventListener("mouseleave", resume);
+    };
+  }, []);
+
+  return (
+    <main className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
 
       {/* ─── HERO SECTION ─── */}
       <section className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-20 pb-24 text-center">
@@ -124,16 +301,14 @@ export default function HomePage() {
       </section>
 
       {/* ─── ABOUT THE OWNER SECTION ─── */}
-      <section className="py-20 bg-linear-to-b from-white to-blue-50">
+      <section className="py-20 bg-gradient-to-b from-white to-blue-50">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex flex-col lg:flex-row items-center gap-12">
-            {/* Photo placeholder */}
-            <div className="shrink-0">
+            <div className="flex-shrink-0">
               <div className="w-56 h-56 rounded-full bg-blue-200 flex items-center justify-center shadow-lg border-4 border-blue-300">
                 <span className="text-7xl">👨‍💼</span>
               </div>
             </div>
-            {/* Content */}
             <div className="text-center lg:text-left">
               <div className="inline-block bg-blue-100 text-blue-600 text-sm font-semibold px-4 py-1.5 rounded-full mb-4">
                 Meet Your Counselor
@@ -161,6 +336,47 @@ export default function HomePage() {
             </div>
           </div>
         </div>
+      </section>
+
+      {/* ─── TESTIMONIALS SCROLLING SECTION ─── */}
+      <section className="py-20 bg-gradient-to-br from-blue-50 to-indigo-50 overflow-hidden">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 text-center mb-12">
+          <div className="inline-block bg-blue-100 text-blue-600 text-sm font-semibold px-4 py-1.5 rounded-full mb-4">
+            🌟 Voices Behind DK EduFin
+          </div>
+          <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-4">
+            Trusted by{" "}
+            <span className="text-blue-500">Founders & Leaders</span>
+          </h2>
+          <p className="text-gray-500 max-w-xl mx-auto">
+            Meet the founders and academic leaders who believe in our mission to
+            make quality education accessible to every student.
+          </p>
+        </div>
+
+        {/* Scrolling Track */}
+        <div className="relative">
+          {/* Left fade */}
+          <div className="absolute left-0 top-0 bottom-0 w-16 sm:w-32 bg-gradient-to-r from-blue-50 to-transparent z-10 pointer-events-none" />
+          {/* Right fade */}
+          <div className="absolute right-0 top-0 bottom-0 w-16 sm:w-32 bg-gradient-to-l from-indigo-50 to-transparent z-10 pointer-events-none" />
+
+          {/* Scrollable container */}
+          <div
+            ref={scrollRef}
+            className="flex overflow-x-hidden py-4 cursor-grab select-none"
+            style={{ scrollbarWidth: "none" }}
+          >
+            {doubled.map((t, i) => (
+              <TestimonialCard key={`${t.id}-${i}`} t={t} />
+            ))}
+          </div>
+        </div>
+
+        {/* Pause hint */}
+        <p className="text-center text-gray-400 text-xs mt-6">
+          Hover over a card to pause the scroll
+        </p>
       </section>
 
       {/* ─── CTA BANNER ─── */}
@@ -199,7 +415,7 @@ export default function HomePage() {
       {/* ─── FOOTER ─── */}
       <footer className="bg-white border-t border-blue-100 py-8">
         <div className="max-w-6xl mx-auto px-4 text-center text-gray-400 text-sm">
-          © {new Date().getFullYear()} DKEduFin. All rights reserved. Built
+          © {new Date().getFullYear()} DKEdufin. All rights reserved. Built
           with ❤️ for students.
         </div>
       </footer>

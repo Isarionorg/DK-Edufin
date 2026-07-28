@@ -76,12 +76,7 @@ export default function Navbar() {
             >
               Colleges
             </Link>
-            <Link
-              href="/testimonials"
-              className="text-gray-600 hover:text-blue-600 font-medium transition-colors duration-200"
-            >
-              Testimonials
-            </Link>
+            
             <Link
               href="/contact"
               className="text-gray-600 hover:text-blue-600 font-medium transition-colors duration-200"
@@ -180,13 +175,7 @@ export default function Navbar() {
             >
               Colleges
             </Link>
-            <Link
-              href="/testimonials"
-              className="text-gray-600 hover:text-blue-600 font-medium"
-              onClick={() => setMenuOpen(false)}
-            >
-              Testimonials
-            </Link>
+            
             <Link
               href="/student-form"
               className="text-gray-600 hover:text-blue-600 font-medium"
