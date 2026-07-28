@@ -317,15 +317,15 @@ export default function HomePage() {
                 Hi, We're <span className="text-blue-500">DK EduFin</span>
               </h2>
               <p className="text-gray-500 text-base leading-relaxed max-w-xl mb-6">
-                With over 10 years of experience in college counseling, I've
-                helped thousands of students find their perfect college fit. My
+                With over 10 years of experience in college counseling, We've
+                helped thousands of students find their perfect college fit. Our
                 mission is simple — to cut through the confusion and give every
                 student honest, clear, and personalized guidance so they can
                 walk into their future with confidence.
               </p>
               <p className="text-gray-500 text-base leading-relaxed max-w-xl mb-8">
                 Whether you're unsure about which stream to pick, which college
-                suits your budget, or how to crack the admission process — I'm
+                suits your budget, or how to crack the admission process — We're
                 here to walk with you every step of the way.
               </p>
               <Link href="/contact">
@@ -412,13 +412,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ─── FOOTER ─── */}
-      <footer className="bg-white border-t border-blue-100 py-8">
-        <div className="max-w-6xl mx-auto px-4 text-center text-gray-400 text-sm">
-          © {new Date().getFullYear()} DKEdufin. All rights reserved. Built
-          with ❤️ for students.
-        </div>
-      </footer>
+      
     </main>
   );
 }
