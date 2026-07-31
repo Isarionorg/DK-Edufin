@@ -81,6 +81,15 @@ const testimonials = [
     imageUrl: "/testimonials/vanlalzawma.png",
     message: `Heartiest congratulations on the launch of DKEDUFIN.ORG! This initiative to create a dedicated platform specifically targeting students from remote areas is truly commendable. DKEDUFIN.ORG will undoubtedly serve as a beacon of hope and opportunity for countless young minds.`,
   },
+  {
+    id: "amit-kumar",
+    name: "Dr. Amit Kumar",
+    title: "Associate Professor and Dean",
+    organization: "Central University of Gujarat, Vadodara",
+    type: "supporter" as const, 
+    imageUrl: "/testimonials/amit-kumar.png",
+    message: `Congratulations to Dr. Deepak Kapoor and his entire team on the launch of your academic consultation platform, DKEdufin.Wishing you every success as you help students turn their dreams of studying at premier institutions in India and abroad into reality.Your dedication, vision, and commitment to guiding aspiring students will undoubtedly make a meaningful difference in many lives. May this new venture exceed your expectations and become a trusted destination for students seeking the right guidance.Wishing you continued success, many milestones, and all the very best on this exciting journey. Congratulations once again!`,
+  },
 ];
 
 // Double the array for seamless infinite scroll
