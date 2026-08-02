@@ -132,7 +132,6 @@ PSQL_Migrations/
 
 # Gatsby files
 .cache/
-public
 
 # TernJS port file
 .tern-port
@@ -165,3 +164,4 @@ cloudinary_config.json
 backend/PSQL_Migrations/PSQL_Claude_Migration1.sql
 backend/PSQL_Migrations/PSQL_Claude_Migration1.sql
 
+/graphify-out/cache

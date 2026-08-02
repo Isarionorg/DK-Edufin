@@ -3,7 +3,7 @@
 
 import Link from "next/link";
 import Button from "@/components/ui/Button";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 
 const features = [
   {
@@ -87,20 +87,30 @@ const testimonials = [
     title: "Associate Professor and Dean",
     organization: "Central University of Gujarat, Vadodara",
     type: "supporter" as const, 
-    imageUrl: "/testimonials/amit-kumar.png",
+    imageUrl: "/testimonials/amit-kumar.jpeg",
     message: `Congratulations to Dr. Deepak Kapoor and his entire team on the launch of your academic consultation platform, DKEdufin.Wishing you every success as you help students turn their dreams of studying at premier institutions in India and abroad into reality.Your dedication, vision, and commitment to guiding aspiring students will undoubtedly make a meaningful difference in many lives. May this new venture exceed your expectations and become a trusted destination for students seeking the right guidance.Wishing you continued success, many milestones, and all the very best on this exciting journey. Congratulations once again!`,
   },
 ];
 
+type Testimonial = typeof testimonials[0];
+
 // Double the array for seamless infinite scroll
 const doubled = [...testimonials, ...testimonials];
 
-function TestimonialCard({ t }: { t: typeof testimonials[0] }) {
+function TestimonialCard({
+  t,
+  onOpen,
+}: {
+  t: Testimonial;
+  onOpen: (t: Testimonial) => void;
+}) {
   const isFounder = t.type === "founder";
 
   return (
-    <div
-      className={`flex-shrink-0 w-80 sm:w-96 rounded-3xl p-6 mx-3 relative overflow-hidden transition-all duration-300 hover:-translate-y-1 hover:shadow-2xl ${
+    <button
+      type="button"
+      onClick={() => onOpen(t)}
+      className={`flex-shrink-0 w-80 sm:w-[26rem] rounded-3xl p-6 mx-3 relative overflow-hidden transition-all duration-300 hover:-translate-y-1 hover:shadow-2xl text-left cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 ${
         isFounder
           ? "bg-gradient-to-br from-blue-600 to-blue-800 border-2 border-blue-400 shadow-xl shadow-blue-200"
           : "bg-white border border-gray-100 shadow-lg"
@@ -183,28 +193,166 @@ function TestimonialCard({ t }: { t: typeof testimonials[0] }) {
       >
         {t.message}
       </p>
+    </button>
+  );
+}
+
+function TestimonialModal({
+  t,
+  onClose,
+}: {
+  t: Testimonial;
+  onClose: () => void;
+}) {
+  const isFounder = t.type === "founder";
+
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    document.addEventListener("keydown", onKeyDown);
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.removeEventListener("keydown", onKeyDown);
+      document.body.style.overflow = "";
+    };
+  }, [onClose]);
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6"
+      onClick={onClose}
+    >
+      {/* Backdrop */}
+      <div className="absolute inset-0 bg-gray-900/60 backdrop-blur-sm animate-[fadeIn_0.2s_ease-out]" />
+
+      {/* Modal card */}
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className={`relative w-full max-w-lg sm:max-w-xl max-h-[85vh] overflow-y-auto rounded-3xl shadow-2xl p-8 sm:p-10 ${
+          isFounder
+            ? "bg-gradient-to-br from-blue-600 to-blue-800"
+            : "bg-white"
+        }`}
+      >
+        {/* Close button */}
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="Close"
+          className={`absolute top-4 right-4 w-9 h-9 flex items-center justify-center rounded-full transition-colors ${
+            isFounder
+              ? "bg-white/10 hover:bg-white/20 text-white"
+              : "bg-gray-100 hover:bg-gray-200 text-gray-500"
+          }`}
+        >
+          ✕
+        </button>
+
+        {/* Badge */}
+        <span
+          className={`inline-block text-xs font-bold px-2.5 py-1 rounded-full mb-6 ${
+            isFounder
+              ? "bg-white/20 text-white border border-white/30"
+              : "bg-blue-50 text-blue-500 border border-blue-100"
+          }`}
+        >
+          {isFounder ? "👨‍💼 Founder" : "⭐ Supporter"}
+        </span>
+
+        {/* Enlarged photo + name */}
+        <div className="flex items-center gap-4 mb-6">
+          <div
+            className={`w-24 h-24 sm:w-28 sm:h-28 rounded-full overflow-hidden border-4 flex-shrink-0 ${
+              isFounder ? "border-white/60" : "border-blue-200"
+            } bg-blue-100`}
+          >
+            <img
+              src={t.imageUrl}
+              alt={t.name}
+              className="w-full h-full object-cover"
+            />
+          </div>
+          <div>
+            <p
+              className={`font-bold text-lg leading-tight ${
+                isFounder ? "text-white" : "text-gray-900"
+              }`}
+            >
+              {t.name}
+            </p>
+            <p
+              className={`text-sm font-semibold mt-1 ${
+                isFounder ? "text-blue-200" : "text-blue-600"
+              }`}
+            >
+              {t.title}
+            </p>
+            <p
+              className={`text-sm mt-0.5 ${
+                isFounder ? "text-blue-300" : "text-gray-400"
+              }`}
+            >
+              {t.organization}
+            </p>
+          </div>
+        </div>
+
+        {/* Quote mark */}
+        <div
+          className={`text-6xl font-serif leading-none mb-2 ${
+            isFounder ? "text-white/30" : "text-blue-200"
+          }`}
+        >
+          "
+        </div>
+
+        {/* Full message */}
+        <p
+          className={`text-base leading-relaxed ${
+            isFounder ? "text-blue-50" : "text-gray-600"
+          }`}
+        >
+          {t.message}
+        </p>
+      </div>
     </div>
   );
 }
 
 export default function HomePage() {
   const scrollRef = useRef<HTMLDivElement>(null);
+  const hoveredRef = useRef(false);
+  const modalOpenRef = useRef(false);
+  const [activeTestimonial, setActiveTestimonial] = useState<Testimonial | null>(
+    null
+  );
 
-  // Infinite auto-scroll
+  // Keep a ref in sync with modal state so the animation loop (set up once)
+  // always reads the latest value without needing to restart itself.
+  useEffect(() => {
+    modalOpenRef.current = activeTestimonial !== null;
+  }, [activeTestimonial]);
+
+  // Infinite auto-scroll — single persistent rAF loop, never torn down/rebuilt
+  // on hover or modal open, so it can't get stuck in a cancelled state.
   useEffect(() => {
     const el = scrollRef.current;
     if (!el) return;
 
     let animationId: number;
-    let speed = 0.6;
+    const speed = 0.4;
 
     const scroll = () => {
       if (!el) return;
-      el.scrollLeft += speed;
 
-      // When we've scrolled halfway (one full set), reset to start
-      if (el.scrollLeft >= el.scrollWidth / 2) {
-        el.scrollLeft = 0;
+      if (!hoveredRef.current && !modalOpenRef.current) {
+        el.scrollLeft += speed;
+
+        // When we've scrolled halfway (one full set), reset to start
+        if (el.scrollLeft >= el.scrollWidth / 2) {
+          el.scrollLeft = 0;
+        }
       }
 
       animationId = requestAnimationFrame(scroll);
@@ -212,19 +360,20 @@ export default function HomePage() {
 
     animationId = requestAnimationFrame(scroll);
 
-    // Pause on hover
-    const pause = () => cancelAnimationFrame(animationId);
-    const resume = () => {
-      animationId = requestAnimationFrame(scroll);
+    const onEnter = () => {
+      hoveredRef.current = true;
+    };
+    const onLeave = () => {
+      hoveredRef.current = false;
     };
 
-    el.addEventListener("mouseenter", pause);
-    el.addEventListener("mouseleave", resume);
+    el.addEventListener("mouseenter", onEnter);
+    el.addEventListener("mouseleave", onLeave);
 
     return () => {
       cancelAnimationFrame(animationId);
-      el.removeEventListener("mouseenter", pause);
-      el.removeEventListener("mouseleave", resume);
+      el.removeEventListener("mouseenter", onEnter);
+      el.removeEventListener("mouseleave", onLeave);
     };
   }, []);
 
@@ -374,17 +523,21 @@ export default function HomePage() {
           <div
             ref={scrollRef}
             className="flex overflow-x-hidden py-4 cursor-grab select-none"
-            style={{ scrollbarWidth: "none" }}
+            style={{ scrollbarWidth: "none", scrollBehavior: "auto" }}
           >
             {doubled.map((t, i) => (
-              <TestimonialCard key={`${t.id}-${i}`} t={t} />
+              <TestimonialCard
+                key={`${t.id}-${i}`}
+                t={t}
+                onOpen={setActiveTestimonial}
+              />
             ))}
           </div>
         </div>
 
         {/* Pause hint */}
         <p className="text-center text-gray-400 text-xs mt-6">
-          Hover over a card to pause the scroll
+          Hover or tap a card to read the full message
         </p>
       </section>
 
@@ -421,7 +574,13 @@ export default function HomePage() {
         </div>
       </section>
 
-      
+      {/* ─── TESTIMONIAL MODAL ─── */}
+      {activeTestimonial && (
+        <TestimonialModal
+          t={activeTestimonial}
+          onClose={() => setActiveTestimonial(null)}
+        />
+      )}
     </main>
   );
 }
