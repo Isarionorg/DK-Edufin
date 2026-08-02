@@ -90,6 +90,15 @@ const testimonials = [
     imageUrl: "/testimonials/amit-kumar.jpeg",
     message: `Congratulations to Dr. Deepak Kapoor and his entire team on the launch of your academic consultation platform, DKEdufin.Wishing you every success as you help students turn their dreams of studying at premier institutions in India and abroad into reality.Your dedication, vision, and commitment to guiding aspiring students will undoubtedly make a meaningful difference in many lives. May this new venture exceed your expectations and become a trusted destination for students seeking the right guidance.Wishing you continued success, many milestones, and all the very best on this exciting journey. Congratulations once again!`,
   },
+  {
+    id: "akhandanand-shukla",
+    name: "Prof. Akhandanand Shukla",
+    title: "Professor",
+    organization: "Central University of Tamil Nadu, Thiruvarur ",
+    type: "supporter" as const, 
+    imageUrl: "/testimonials/akhandanand-shukla.jpeg",
+    message: `Congratulations on developing such an informative userfriendly and excellent platform for students seeking guidance in choosing a suitable career path. It provides valuable educational guidance and opportunities for school and college students. The platform has immense potential to support students in their academic journey, career planning, and overall personal development. I sincerely appreciate the efforts of the entire team in team in creating this meaningful initiative and wish you continued success in empowering young learners and contributing to the advancement of education. `,
+  },
 ];
 
 type Testimonial = typeof testimonials[0];
