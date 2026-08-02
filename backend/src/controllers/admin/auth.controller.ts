@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin123';
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'dkedufin123';
 const ADMIN_TOKEN = process.env.ADMIN_TOKEN || 'admin-secret-token';
 
 export const adminLogin = (req: Request, res: Response): void => {
