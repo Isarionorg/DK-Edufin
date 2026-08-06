@@ -74,7 +74,7 @@ const testimonials = [
   },
   {
     id: "vanlalzawma",
-    name: "Sd/- V. VANLALZAWMA",
+    name: "V. VANLALZAWMA",
     title: "Assistant Librarian & Head, Central Library",
     organization: "NIT Mizoram",
     type: "supporter" as const,
@@ -345,22 +345,49 @@ export default function HomePage() {
 
   // Infinite auto-scroll — single persistent rAF loop, never torn down/rebuilt
   // on hover or modal open, so it can't get stuck in a cancelled state.
+  //
+  // Speed is TIME-based (pixels per second) rather than a fixed amount per
+  // animation frame. This matters because requestAnimationFrame fires at
+  // whatever rate the display/browser gives it — 60Hz, 120Hz, or throttled
+  // way down under power-saving mode / background tabs / weaker GPUs. A
+  // fixed per-frame increment scrolls at different visible speeds on
+  // different machines, and on a heavily throttled laptop it can look like
+  // it isn't scrolling at all. Using the frame timestamp to compute an
+  // elapsed-time delta keeps the visible speed consistent everywhere.
   useEffect(() => {
     const el = scrollRef.current;
     if (!el) return;
 
     let animationId: number;
-    const speed = 0.4;
+    let lastTimestamp: number | null = null;
 
-    const scroll = () => {
+    // Pixels per second. Increased from the previous effective speed
+    // (~48px/s at 60Hz) — tune this value up/down as needed.
+    const pixelsPerSecond = 90;
+
+    const scroll = (timestamp: number) => {
       if (!el) return;
 
-      if (!hoveredRef.current && !modalOpenRef.current) {
-        el.scrollLeft += speed;
+      if (lastTimestamp === null) {
+        lastTimestamp = timestamp;
+      }
+      const deltaMs = timestamp - lastTimestamp;
+      lastTimestamp = timestamp;
 
-        // When we've scrolled halfway (one full set), reset to start
-        if (el.scrollLeft >= el.scrollWidth / 2) {
-          el.scrollLeft = 0;
+      if (!hoveredRef.current && !modalOpenRef.current) {
+        const halfWidth = el.scrollWidth / 2;
+
+        // Guard against scrollWidth being 0/unmeasured on first paint
+        // (e.g. images still loading), which could otherwise make the
+        // scroll appear stuck on slower machines.
+        if (halfWidth > 0) {
+          el.scrollLeft += (pixelsPerSecond * deltaMs) / 1000;
+
+          // Subtract rather than reset to 0, so a slightly-overshot frame
+          // (more likely now that deltas vary) doesn't cause a visible jump.
+          if (el.scrollLeft >= halfWidth) {
+            el.scrollLeft -= halfWidth;
+          }
         }
       }
 
